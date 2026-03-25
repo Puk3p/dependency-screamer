@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Pre-push hook: runs tests before allowing a push.
+#
+
+set -e
+
+echo "🚀 [pre-push] Running pre-push checks..."
+
+# 1. Validate branch naming convention
+HOOKS_DIR=$(dirname "$0")
+if [ -f "$HOOKS_DIR/branch-naming" ]; then
+    sh "$HOOKS_DIR/branch-naming" || exit 1
+fi
+
+# 2. Run tests
+if [ -f "./gradlew" ]; then
+    echo "🧪 Running tests..."
+    ./gradlew test --quiet 2>/dev/null || {
+        echo "❌ Tests failed. Fix failing tests before pushing."
+        exit 1
+    }
+fi
+
+# 2. Verify plugin structure
+if [ -f "./gradlew" ]; then
+    echo "🔍 Verifying plugin structure..."
+    ./gradlew verifyPluginStructure --quiet 2>/dev/null || {
+        echo "❌ Plugin structure verification failed."
+        exit 1
+    }
+fi
+
+echo "✅ [pre-push] All checks passed."

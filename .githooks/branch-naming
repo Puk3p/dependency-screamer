@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Validates branch naming convention.
+# Called from pre-push hook.
+#
+# Allowed patterns:
+#   main
+#   develop
+#   feat/<description>
+#   fix/<description>
+#   refactor/<description>
+#   chore/<description>
+#   docs/<description>
+#   test/<description>
+#   ci/<description>
+#   release/<version>
+#   hotfix/<description>
+#
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+PATTERN="^(main|develop|(feat|fix|refactor|chore|docs|test|ci|release|hotfix)/.+)$"
+
+if ! echo "$BRANCH" | grep -qE "$PATTERN"; then
+    echo "❌ Invalid branch name: '$BRANCH'"
+    echo ""
+    echo "Branch names must follow the pattern:"
+    echo "  feat/<description>"
+    echo "  fix/<description>"
+    echo "  refactor/<description>"
+    echo "  chore/<description>"
+    echo "  docs/<description>"
+    echo "  test/<description>"
+    echo "  ci/<description>"
+    echo "  release/<version>"
+    echo "  hotfix/<description>"
+    echo ""
+    echo "Examples:"
+    echo "  feat/nexus-client"
+    echo "  fix/version-comparison-bug"
+    echo "  chore/update-gradle"
+    echo ""
+    exit 1
+fi

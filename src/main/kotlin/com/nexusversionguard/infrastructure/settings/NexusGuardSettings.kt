@@ -68,7 +68,7 @@ class NexusGuardSettings :
         return password
     }
 
-    override fun isConfigured(): Boolean = getConfig().isConfigured
+    override fun isConfigured(): Boolean = baseUrl.isNotBlank() && repositories.isNotBlank()
 
     companion object {
         fun getInstance(): NexusGuardSettings {

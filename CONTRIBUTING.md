@@ -106,11 +106,13 @@ src/main/kotlin/com/nexusversionguard/
 │   ├── version/     # Version comparison logic
 │   └── settings/    # Persistent state
 └── ui/              # IntelliJ UI integration
+    ├── toolwindow/  # Tool Window panel, cards, animations
     ├── inspection/  # XML inspections
     ├── annotator/   # Gutter icons
     ├── quickfix/    # Auto-fix actions
     ├── settings/    # Config UI panel
-    └── startup/     # Post-startup activity
+    ├── startup/     # Post-startup activity
+    └── icons/       # Custom SVG icon
 ```
 
 ## Code Guidelines

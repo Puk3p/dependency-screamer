@@ -31,6 +31,13 @@ class DependencyAnalysisServiceTest {
             repositories = listOf("maven-releases"),
         )
 
+    private val configuredWithFilter =
+        NexusConfig(
+            baseUrl = "http://nexus.local",
+            repositories = listOf("maven-releases"),
+            groupFilter = "com.endava",
+        )
+
     @Before
     fun setUp() {
         whenever(configurationProvider.isConfigured()).thenReturn(true)
@@ -189,5 +196,100 @@ class DependencyAnalysisServiceTest {
 
         service.clearCache()
         assertThat(service.getCachedResult("org.example:lib")).isNull()
+    }
+
+    @Test
+    fun `group filter excludes non-matching dependencies`() {
+        whenever(configurationProvider.getConfig()).thenReturn(configuredWithFilter)
+
+        val endavaDep =
+            MavenDependency(
+                coordinates = MavenCoordinates("com.endava.xelerator", "lib"),
+                version = "1.0.0",
+                rawVersion = "1.0.0",
+                lineNumber = 10,
+                isPropertyBased = false,
+            )
+        val otherDep =
+            MavenDependency(
+                coordinates = MavenCoordinates("org.springframework", "spring-core"),
+                version = "6.0.0",
+                rawVersion = "6.0.0",
+                lineNumber = 20,
+                isPropertyBased = false,
+            )
+
+        whenever(dependencySource.extractDependencies(any())).thenReturn(listOf(endavaDep, otherDep))
+        whenever(repositoryClient.fetchAvailableVersions(any()))
+            .thenReturn(CompletableFuture.completedFuture(emptyList()))
+
+        val results = service.analyzeDependencies("<project/>").join()
+
+        assertThat(results).hasSize(1)
+        assertThat(results[0].dependency.groupId).isEqualTo("com.endava.xelerator")
+    }
+
+    @Test
+    fun `group filter is case insensitive`() {
+        val upperCaseFilter =
+            NexusConfig(
+                baseUrl = "http://nexus.local",
+                repositories = listOf("maven-releases"),
+                groupFilter = "COM.ENDAVA",
+            )
+        whenever(configurationProvider.getConfig()).thenReturn(upperCaseFilter)
+
+        val dep =
+            MavenDependency(
+                coordinates = MavenCoordinates("com.endava.lib", "something"),
+                version = "1.0.0",
+                rawVersion = "1.0.0",
+                lineNumber = 10,
+                isPropertyBased = false,
+            )
+
+        whenever(dependencySource.extractDependencies(any())).thenReturn(listOf(dep))
+        whenever(repositoryClient.fetchAvailableVersions(any()))
+            .thenReturn(CompletableFuture.completedFuture(emptyList()))
+
+        val results = service.analyzeDependencies("<project/>").join()
+
+        assertThat(results).hasSize(1)
+    }
+
+    @Test
+    fun `empty group filter returns all dependencies`() {
+        val noFilter =
+            NexusConfig(
+                baseUrl = "http://nexus.local",
+                repositories = listOf("maven-releases"),
+                groupFilter = "",
+            )
+        whenever(configurationProvider.getConfig()).thenReturn(noFilter)
+
+        val dep1 =
+            MavenDependency(
+                coordinates = MavenCoordinates("com.endava", "a"),
+                version = "1.0",
+                rawVersion = "1.0",
+                lineNumber = 10,
+                isPropertyBased = false,
+            )
+        val dep2 =
+            MavenDependency(
+                coordinates = MavenCoordinates("org.other", "b"),
+                version = "2.0",
+                rawVersion = "2.0",
+                lineNumber = 20,
+                isPropertyBased = false,
+            )
+
+        whenever(dependencySource.extractDependencies(any())).thenReturn(listOf(dep1, dep2))
+        whenever(repositoryClient.fetchAvailableVersions(any()))
+            .thenReturn(CompletableFuture.completedFuture(emptyList()))
+
+        val results = service.analyzeDependencies("<project/>").join()
+
+        assertThat(results).hasSize(2)
     }
 }

@@ -40,7 +40,7 @@
                 id="Dependency Screamer"
                 anchor="bottom"
                 secondary="false"
-                icon="AllIcons.Actions.Find"
+                icon="/icons/logo.svg"
                 factoryClass="com.nexusversionguard.ui.toolwindow.DependencyScreamerToolWindowFactory"/>
     </extensions>
 </idea-plugin>

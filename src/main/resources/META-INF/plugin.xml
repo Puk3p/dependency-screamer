@@ -35,5 +35,12 @@
         <notificationGroup
                 id="Dependency Screamer"
                 displayType="BALLOON"/>
+
+        <toolWindow
+                id="Dependency Screamer"
+                anchor="bottom"
+                secondary="false"
+                icon="AllIcons.Actions.Find"
+                factoryClass="com.nexusversionguard.ui.toolwindow.DependencyScreamerToolWindowFactory"/>
     </extensions>
 </idea-plugin>

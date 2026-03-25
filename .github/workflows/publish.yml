@@ -35,3 +35,8 @@ jobs:
         run: ./gradlew publishPlugin
         env:
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+
+      - name: Attach plugin ZIP to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/distributions/*.zip

@@ -1,10 +1,45 @@
 <idea-plugin>
     <id>com.dependencyscreamer</id>
     <name>Dependency Screamer</name>
-    <vendor>dependency-screamer</vendor>
+    <vendor email="george.lupu.dev@gmail.com" url="https://github.com/Puk3p/dependency-screamer">George Lupu</vendor>
     <description><![CDATA[
-        Checks local pom.xml dependencies against Nexus Repository and warns when newer versions are available.
+        <h2>Dependency Screamer</h2>
+        <p>Checks your <code>pom.xml</code> Maven dependencies against a Nexus Repository and warns when newer versions are available.</p>
+
+        <h3>Key Features</h3>
+        <ul>
+            <li><b>Nexus integration</b> — queries Nexus Repository REST API with full pagination support</li>
+            <li><b>Group filter</b> — only scan dependencies matching configurable group prefixes (e.g. <code>com.endava</code>)</li>
+            <li><b>Tool Window</b> — beautiful card-based UI with animated spinner, summary badges, and staggered reveals</li>
+            <li><b>Clickable Nexus links</b> — outdated dependencies link directly to the artifact in Nexus browser</li>
+            <li><b>Code annotations</b> — gutter icons and warnings on outdated <code>&lt;version&gt;</code> tags</li>
+            <li><b>Quick-fix</b> — one-click update to the latest version</li>
+            <li><b>Property resolution</b> — handles <code>${jackson.version}</code> style Maven properties</li>
+            <li><b>Secure credentials</b> — passwords stored via IntelliJ PasswordSafe</li>
+            <li><b>Fully async</b> — no UI blocking</li>
+        </ul>
+
+        <h3>Getting Started</h3>
+        <ol>
+            <li>Go to <b>Settings → Tools → Dependency Screamer</b></li>
+            <li>Enter your Nexus URL, repository name(s), and optional credentials</li>
+            <li>Open the <b>Dependency Screamer</b> tool window and click <b>Scan</b></li>
+        </ol>
     ]]></description>
+
+    <change-notes><![CDATA[
+        <h3>1.0.0</h3>
+        <ul>
+            <li>Initial release</li>
+            <li>Maven POM dependency scanning with property resolution</li>
+            <li>Nexus Repository integration with pagination and authentication</li>
+            <li>Configurable group filter for targeted scanning</li>
+            <li>Tool Window with animated UI, summary badges, and card-based results</li>
+            <li>Clickable Nexus links for outdated dependencies</li>
+            <li>XML inspection, gutter annotations, and quick-fix actions</li>
+            <li>Setup wizard for first-time configuration</li>
+        </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.xml</depends>

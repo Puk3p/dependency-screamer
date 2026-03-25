@@ -51,5 +51,4 @@ class DependencyVersionAnnotator : Annotator {
             else -> {}
         }
     }
-
 }

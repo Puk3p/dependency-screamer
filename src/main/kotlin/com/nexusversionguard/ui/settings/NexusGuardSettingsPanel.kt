@@ -10,14 +10,20 @@ import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 
 class NexusGuardSettingsPanel {
-    private val baseUrlField = JBTextField().apply {
-        emptyText.text = "e.g. https://nexus.example.com"
-    }
-    private val repositoriesField = JBTextField().apply {
-        emptyText.text = "e.g. maven-releases, maven-snapshots"
-    }
+    private val baseUrlField =
+        JBTextField().apply {
+            emptyText.text = "e.g. https://nexus.example.com"
+        }
+    private val repositoriesField =
+        JBTextField().apply {
+            emptyText.text = "e.g. maven-releases, maven-snapshots"
+        }
     private val usernameField = JBTextField()
     private val passwordField = JBPasswordField()
+    private val groupFilterField =
+        JBTextField().apply {
+            emptyText.text = "e.g. com.endava (leave empty for all)"
+        }
     private val ignoreSnapshotsCheckbox = JBCheckBox("Ignore SNAPSHOT versions")
     private val timeoutSpinner = JSpinner(SpinnerNumberModel(10, 1, 120, 1))
 
@@ -29,6 +35,7 @@ class NexusGuardSettingsPanel {
             .addLabeledComponent(JBLabel("Username:"), usernameField)
             .addLabeledComponent(JBLabel("Password:"), passwordField)
             .addSeparator()
+            .addLabeledComponent(JBLabel("Group filter (only check matching):"), groupFilterField)
             .addComponent(ignoreSnapshotsCheckbox)
             .addLabeledComponent(JBLabel("Timeout (seconds):"), timeoutSpinner)
             .addComponentFillVertically(JPanel(), 0)
@@ -68,5 +75,11 @@ class NexusGuardSettingsPanel {
         get() = timeoutSpinner.value as Int
         set(value) {
             timeoutSpinner.value = value
+        }
+
+    var groupFilter: String
+        get() = groupFilterField.text
+        set(value) {
+            groupFilterField.text = value
         }
 }

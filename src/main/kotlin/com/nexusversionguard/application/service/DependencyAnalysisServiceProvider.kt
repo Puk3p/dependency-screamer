@@ -36,12 +36,13 @@ class DependencyAnalysisServiceProvider {
             val versionComparator = SemanticVersionComparator()
             val repositoryClient = NexusRepositoryClient(settings.getConfig(), versionComparator)
 
-            val service = DependencyAnalysisService(
-                dependencySource = dependencySource,
-                repositoryClient = repositoryClient,
-                versionComparator = versionComparator,
-                configurationProvider = settings,
-            )
+            val service =
+                DependencyAnalysisService(
+                    dependencySource = dependencySource,
+                    repositoryClient = repositoryClient,
+                    versionComparator = versionComparator,
+                    configurationProvider = settings,
+                )
 
             cachedService = service
             lastConfigHash = configHash

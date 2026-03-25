@@ -25,6 +25,7 @@ class NexusGuardSettings :
     var username: String = ""
     var ignoreSnapshots: Boolean = true
     var timeoutSeconds: Int = 10
+    var groupFilter: String = ""
 
     @get:Transient
     var password: String

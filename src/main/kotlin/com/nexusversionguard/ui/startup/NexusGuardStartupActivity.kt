@@ -47,5 +47,4 @@ class NexusGuardStartupActivity : ProjectActivity {
             logger.warn("Dependency Screamer: startup scan failed", e)
         }
     }
-
 }

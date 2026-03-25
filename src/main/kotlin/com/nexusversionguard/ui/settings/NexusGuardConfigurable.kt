@@ -25,7 +25,8 @@ class NexusGuardConfigurable : Configurable {
             panel.username != settings.username ||
             panel.password != settings.password ||
             panel.ignoreSnapshots != settings.ignoreSnapshots ||
-            panel.timeoutSeconds != settings.timeoutSeconds
+            panel.timeoutSeconds != settings.timeoutSeconds ||
+            panel.groupFilter != settings.groupFilter
     }
 
     override fun apply() {
@@ -38,6 +39,7 @@ class NexusGuardConfigurable : Configurable {
         settings.password = panel.password
         settings.ignoreSnapshots = panel.ignoreSnapshots
         settings.timeoutSeconds = panel.timeoutSeconds
+        settings.groupFilter = panel.groupFilter
 
         DependencyAnalysisServiceProvider.getInstance().invalidate()
     }
@@ -52,6 +54,7 @@ class NexusGuardConfigurable : Configurable {
         panel.password = settings.password
         panel.ignoreSnapshots = settings.ignoreSnapshots
         panel.timeoutSeconds = settings.timeoutSeconds
+        panel.groupFilter = settings.groupFilter
     }
 
     override fun disposeUIResources() {

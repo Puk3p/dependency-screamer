@@ -47,10 +47,26 @@ intellijPlatform {
         version = project.version.toString()
         description = "Checks local pom.xml dependencies against Nexus and warns when newer versions are available."
 
+        vendor {
+            name = "George Lupu"
+            email = "george.lupu.dev@gmail.com"
+            url = "https://github.com/Puk3p/dependency-screamer"
+        }
+
         ideaVersion {
             sinceBuild = "243"
             untilBuild = "251.*"
         }
+    }
+
+    signing {
+        certificateChainFile = providers.environmentVariable("CERTIFICATE_CHAIN").map { file(it) }
+        privateKeyFile = providers.environmentVariable("PRIVATE_KEY").map { file(it) }
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 
     pluginVerification {

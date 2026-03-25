@@ -1,84 +1,66 @@
 #!/bin/sh
-#
-# Pre-push hook
-#
-# Steps:
-#   1. Validate branch naming convention
-#   2. Spotless format check (no auto-fix, just verify)
-#   3. Compile
-#   4. SpotBugs static analysis
-#   5. Run tests
-#   6. Verify plugin structure
-#
-
 set -e
 
 echo ""
-echo "═══════════════════════════════════════"
+echo "======================================="
 echo "  PRE-PUSH CHECKS"
-echo "═══════════════════════════════════════"
+echo "======================================="
 
-# ── Step 1: Branch naming ────────────────────────────────
-echo "🏷️  Step 1/6: Validating branch name..."
+echo "Step 1/6: Validating branch name..."
 HOOKS_DIR=$(dirname "$0")
 if [ -f "$HOOKS_DIR/branch-naming" ]; then
     sh "$HOOKS_DIR/branch-naming" || exit 1
 fi
-echo "   ✓ Branch name valid"
+echo "   OK"
 
-# ── Step 2: Spotless check ───────────────────────────────
 if [ -f "./gradlew" ]; then
-    echo "🎨 Step 2/6: Checking code formatting (Spotless)..."
+    echo "Step 2/6: Checking code formatting (Spotless)..."
     ./gradlew spotlessCheck --quiet 2>/dev/null || {
-        echo "❌ FAILED: Code is not formatted. Run: ./gradlew spotlessApply"
+        echo "FAILED: Code is not formatted. Run: ./gradlew spotlessApply"
         exit 1
     }
-    echo "   ✓ Code formatting OK"
+    echo "   OK"
 else
-    echo "⏭️  Step 2/6: gradlew not found — skipping"
+    echo "Step 2/6: gradlew not found, skipping"
 fi
 
-# ── Step 3: Compile ──────────────────────────────────────
 if [ -f "./gradlew" ]; then
-    echo "🔨 Step 3/6: Compiling..."
+    echo "Step 3/6: Compiling..."
     ./gradlew compileKotlin --quiet 2>/dev/null || {
-        echo "❌ FAILED: Compilation failed."
+        echo "FAILED: Compilation failed."
         exit 1
     }
-    echo "   ✓ Compilation successful"
+    echo "   OK"
 fi
 
-# ── Step 4: SpotBugs ─────────────────────────────────────
 if [ -f "./gradlew" ]; then
-    echo "🐛 Step 4/6: Running SpotBugs static analysis..."
+    echo "Step 4/6: Running SpotBugs static analysis..."
     ./gradlew spotbugsMain --quiet 2>/dev/null || {
-        echo "⚠️  Warning: SpotBugs found issues (see build/reports/spotbugs/)"
+        echo "Warning: SpotBugs found issues (see build/reports/spotbugs/)"
     }
-    echo "   ✓ Static analysis done"
+    echo "   OK"
 fi
 
-# ── Step 5: Tests ────────────────────────────────────────
 if [ -f "./gradlew" ]; then
-    echo "🧪 Step 5/6: Running tests..."
+    echo "Step 5/6: Running tests..."
     ./gradlew test --quiet 2>/dev/null || {
-        echo "❌ FAILED: Tests failed. Fix before pushing."
+        echo "FAILED: Tests failed. Fix before pushing."
         exit 1
     }
-    echo "   ✓ All tests passed"
+    echo "   OK"
 fi
 
-# ── Step 6: Verify plugin structure ──────────────────────
 if [ -f "./gradlew" ]; then
-    echo "🔍 Step 6/6: Verifying plugin structure..."
+    echo "Step 6/6: Verifying plugin structure..."
     ./gradlew verifyPluginStructure --quiet 2>/dev/null || {
-        echo "❌ FAILED: Plugin structure verification failed."
+        echo "FAILED: Plugin structure verification failed."
         exit 1
     }
-    echo "   ✓ Plugin structure valid"
+    echo "   OK"
 fi
 
 echo ""
-echo "═══════════════════════════════════════"
-echo "  ✅ PRE-PUSH PASSED"
-echo "═══════════════════════════════════════"
+echo "======================================="
+echo "  PRE-PUSH PASSED"
+echo "======================================="
 echo ""

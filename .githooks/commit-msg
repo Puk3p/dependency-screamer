@@ -1,18 +1,11 @@
 #!/bin/sh
-#
-# Commit message hook: enforces Conventional Commits format.
-#
-# Format: <type>(<scope>): <description>
-# Types: feat, fix, docs, style, refactor, test, chore, ci, perf, build
-#
-
 COMMIT_MSG_FILE=$1
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
 
 PATTERN="^(feat|fix|docs|style|refactor|test|chore|ci|perf|build)(\(.+\))?: .{1,}"
 
 if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
-    echo "❌ Invalid commit message format."
+    echo "Invalid commit message format."
     echo ""
     echo "Expected: <type>(<scope>): <description>"
     echo ""

@@ -1,97 +1,77 @@
 #!/bin/sh
-#
-# Pre-commit hook
-#
-# Steps:
-#   1. Detect staged files
-#   2. Check for merge conflict markers
-#   3. Check for hardcoded secrets
-#   4. Auto-format with Spotless
-#   5. Re-stage formatted files
-#   6. Compile check
-#   7. TODO/FIXME warning (non-blocking)
-#
-
 set -e
 
 echo ""
-echo "═══════════════════════════════════════"
+echo "======================================="
 echo "  PRE-COMMIT CHECKS"
-echo "═══════════════════════════════════════"
+echo "======================================="
 
-# ── Step 1: Detect staged files ──────────────────────────
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
 if [ -z "$STAGED_FILES" ]; then
-    echo "ℹ️  No staged files. Skipping checks."
+    echo "No staged files. Skipping checks."
     exit 0
 fi
-echo "📋 Step 1/7: Found $(echo "$STAGED_FILES" | wc -l | tr -d ' ') staged file(s)"
+echo "Step 1/7: Found $(echo "$STAGED_FILES" | wc -l | tr -d ' ') staged file(s)"
 
-# ── Step 2: Merge conflict markers ──────────────────────
-echo "🔎 Step 2/7: Checking for merge conflict markers..."
+echo "Step 2/7: Checking for merge conflict markers..."
 CONFLICT=$(echo "$STAGED_FILES" | xargs grep -rn "^<<<<<<< \|^=======$\|^>>>>>>> " 2>/dev/null || true)
 if [ -n "$CONFLICT" ]; then
-    echo "❌ FAILED: Merge conflict markers found:"
+    echo "FAILED: Merge conflict markers found:"
     echo "$CONFLICT"
     exit 1
 fi
-echo "   ✓ No conflict markers"
+echo "   OK"
 
-# ── Step 3: Hardcoded secrets ────────────────────────────
-echo "🔐 Step 3/7: Scanning for hardcoded secrets..."
+echo "Step 3/7: Scanning for hardcoded secrets..."
 SECRETS=$(echo "$STAGED_FILES" | xargs grep -rEn "(password|secret|api_key|apikey|token)\s*=\s*[\"'][^\"']+[\"']" 2>/dev/null | grep -v "test" | grep -v ".example" || true)
 if [ -n "$SECRETS" ]; then
-    echo "❌ FAILED: Possible hardcoded secrets detected:"
+    echo "FAILED: Possible hardcoded secrets detected:"
     echo "$SECRETS"
     exit 1
 fi
-echo "   ✓ No secrets found"
+echo "   OK"
 
-# ── Step 4: Spotless auto-format ─────────────────────────
 KOTLIN_FILES=$(echo "$STAGED_FILES" | grep "\.kt$\|\.kts$" || true)
 if [ -n "$KOTLIN_FILES" ] && [ -f "./gradlew" ]; then
-    echo "🎨 Step 4/7: Running Spotless auto-format..."
+    echo "Step 4/7: Running Spotless auto-format..."
     ./gradlew spotlessApply --quiet 2>/dev/null || {
-        echo "❌ FAILED: Spotless formatting failed."
+        echo "FAILED: Spotless formatting failed."
         exit 1
     }
-    echo "   ✓ Code formatted"
+    echo "   OK"
 else
-    echo "⏭️  Step 4/7: No Kotlin files staged — skipping Spotless"
+    echo "Step 4/7: No Kotlin files staged, skipping Spotless"
 fi
 
-# ── Step 5: Re-stage formatted files ─────────────────────
 if [ -n "$KOTLIN_FILES" ]; then
-    echo "📌 Step 5/7: Re-staging formatted files..."
+    echo "Step 5/7: Re-staging formatted files..."
     echo "$KOTLIN_FILES" | xargs git add
-    echo "   ✓ Files re-staged"
+    echo "   OK"
 else
-    echo "⏭️  Step 5/7: Nothing to re-stage"
+    echo "Step 5/7: Nothing to re-stage"
 fi
 
-# ── Step 6: Compile check ────────────────────────────────
 if [ -n "$KOTLIN_FILES" ] && [ -f "./gradlew" ]; then
-    echo "🔨 Step 6/7: Compiling Kotlin..."
+    echo "Step 6/7: Compiling Kotlin..."
     ./gradlew compileKotlin --quiet 2>/dev/null || {
-        echo "❌ FAILED: Kotlin compilation failed."
+        echo "FAILED: Kotlin compilation failed."
         exit 1
     }
-    echo "   ✓ Compilation successful"
+    echo "   OK"
 else
-    echo "⏭️  Step 6/7: No Kotlin files — skipping compile"
+    echo "Step 6/7: No Kotlin files, skipping compile"
 fi
 
-# ── Step 7: TODO/FIXME scan (warning only) ───────────────
-echo "📝 Step 7/7: Scanning for TODO/FIXME markers..."
+echo "Step 7/7: Scanning for TODO/FIXME markers..."
 TODO_COUNT=$(echo "$STAGED_FILES" | xargs grep -rn "TODO\|FIXME\|HACK\|XXX" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$TODO_COUNT" -gt 0 ]; then
-    echo "   ⚠️  Warning: $TODO_COUNT TODO/FIXME/HACK/XXX marker(s) found"
+    echo "   Warning: $TODO_COUNT TODO/FIXME/HACK/XXX marker(s) found"
 else
-    echo "   ✓ Clean"
+    echo "   OK"
 fi
 
 echo ""
-echo "═══════════════════════════════════════"
-echo "  ✅ PRE-COMMIT PASSED"
-echo "═══════════════════════════════════════"
+echo "======================================="
+echo "  PRE-COMMIT PASSED"
+echo "======================================="
 echo ""

@@ -86,7 +86,6 @@ tasks {
         useJUnit()
     }
 
-    // Disable until extension classes are implemented
     buildSearchableOptions {
         enabled = false
     }

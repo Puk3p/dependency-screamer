@@ -35,6 +35,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 
 class DependencyScreamerToolWindowPanel(private val project: Project) {
     val rootPanel: JPanel = JPanel(CardLayout())
@@ -43,6 +44,9 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
     private val mainCard = JPanel(BorderLayout())
     private val resultsPanel = JPanel()
     private val summaryPanel = JPanel()
+
+    private var spinnerTimer: Timer? = null
+    private var revealTimer: Timer? = null
 
     private val accentGreen = JBColor(Color(46, 160, 67), Color(63, 185, 80))
     private val accentOrange = JBColor(Color(210, 153, 34), Color(227, 179, 65))
@@ -240,11 +244,8 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         resultsPanel.removeAll()
         summaryPanel.removeAll()
 
-        val progressLabel = JBLabel("Analyzing dependencies...")
-        progressLabel.foreground = subtleText
-        progressLabel.border = JBUI.Borders.empty(20, 0)
-        progressLabel.alignmentX = Component.LEFT_ALIGNMENT
-        resultsPanel.add(progressLabel)
+        val spinnerPanel = createSpinner()
+        resultsPanel.add(spinnerPanel)
         resultsPanel.revalidate()
         resultsPanel.repaint()
 
@@ -255,12 +256,14 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                 val results = service.analyzeDependencies(content).join()
 
                 SwingUtilities.invokeLater {
-                    displayResults(results)
+                    stopSpinner()
+                    displayResultsAnimated(results)
                     scanButton.isEnabled = true
                     scanButton.text = "Scan"
                 }
             } catch (e: Exception) {
                 SwingUtilities.invokeLater {
+                    stopSpinner()
                     resultsPanel.removeAll()
                     showEmptyState("Scan failed: ${e.message}")
                     scanButton.isEnabled = true
@@ -313,6 +316,171 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         resultsPanel.add(Box.createVerticalGlue())
         resultsPanel.revalidate()
         resultsPanel.repaint()
+    }
+
+    private fun displayResultsAnimated(results: List<DependencyAnalysisResult>) {
+        resultsPanel.removeAll()
+        summaryPanel.removeAll()
+
+        if (results.isEmpty()) {
+            val filter = NexusGuardSettings.getInstance().groupFilter
+            if (filter.isNotBlank()) {
+                showEmptyState("No dependencies matching filter: $filter")
+            } else {
+                showEmptyState("No dependencies found in pom.xml")
+            }
+            return
+        }
+
+        val outdated = results.filter { it.status == DependencyStatus.OUTDATED }
+        val upToDate = results.filter { it.status == DependencyStatus.UP_TO_DATE }
+        val errors =
+            results.filter {
+                it.status == DependencyStatus.ERROR || it.status == DependencyStatus.NOT_FOUND
+            }
+        val unresolved = results.filter { it.status == DependencyStatus.UNRESOLVED }
+
+        addSummaryBadge("${outdated.size} outdated", accentOrange, outdated.isNotEmpty())
+        addSummaryBadge("${upToDate.size} ok", accentGreen, upToDate.isNotEmpty())
+        if (errors.isNotEmpty()) addSummaryBadge("${errors.size} errors", accentRed, true)
+        summaryPanel.revalidate()
+
+        val allComponents = mutableListOf<JPanel>()
+
+        if (outdated.isNotEmpty()) {
+            allComponents.addAll(buildSection("Outdated", accentOrange, outdated))
+        }
+        if (errors.isNotEmpty()) {
+            allComponents.addAll(buildSection("Errors", accentRed, errors))
+        }
+        if (unresolved.isNotEmpty()) {
+            allComponents.addAll(buildSection("Unresolved", subtleText, unresolved))
+        }
+        if (upToDate.isNotEmpty()) {
+            allComponents.addAll(buildSection("Up to date", accentGreen, upToDate))
+        }
+
+        allComponents.forEach { it.isVisible = false }
+        allComponents.forEach { resultsPanel.add(it) }
+        resultsPanel.add(Box.createVerticalGlue())
+        resultsPanel.revalidate()
+
+        var index = 0
+        revealTimer?.stop()
+        revealTimer = Timer(50, null)
+        revealTimer?.addActionListener {
+            if (index < allComponents.size) {
+                allComponents[index].isVisible = true
+                index++
+            } else {
+                revealTimer?.stop()
+            }
+        }
+        revealTimer?.start()
+    }
+
+    private fun buildSection(
+        title: String,
+        color: Color,
+        items: List<DependencyAnalysisResult>,
+    ): List<JPanel> {
+        val panels = mutableListOf<JPanel>()
+
+        val header = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        header.isOpaque = false
+        header.alignmentX = Component.LEFT_ALIGNMENT
+        header.border = JBUI.Borders.empty(12, 0, 4, 0)
+        header.maximumSize = Dimension(Int.MAX_VALUE, 36)
+
+        val dot =
+            object : JPanel() {
+                override fun paintComponent(g: Graphics) {
+                    val g2 = g as Graphics2D
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                    g2.color = color
+                    g2.fillOval(2, 2, 8, 8)
+                }
+            }
+        dot.preferredSize = Dimension(12, 12)
+        dot.isOpaque = false
+
+        val label = JBLabel("$title (${items.size})")
+        label.font = label.font.deriveFont(Font.BOLD, 12f)
+        label.foreground = color
+        label.border = JBUI.Borders.emptyLeft(4)
+
+        header.add(dot)
+        header.add(label)
+        panels.add(header)
+
+        items.forEach { panels.add(buildCardPanel(it)) }
+        return panels
+    }
+
+    private fun createSpinner(): JPanel {
+        val panel = JPanel(BorderLayout())
+        panel.isOpaque = false
+        panel.border = JBUI.Borders.empty(30, 0)
+        panel.alignmentX = Component.LEFT_ALIGNMENT
+
+        val spinner =
+            object : JPanel() {
+                private var angle = 0
+
+                init {
+                    preferredSize = Dimension(32, 32)
+                    isOpaque = false
+                }
+
+                override fun paintComponent(g: Graphics) {
+                    val g2 = g as Graphics2D
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                    val cx = width / 2
+                    val cy = height / 2
+                    val r = 12
+                    for (i in 0 until 8) {
+                        val a = Math.toRadians((angle + i * 45).toDouble())
+                        val x = cx + (r * Math.cos(a)).toInt()
+                        val y = cy + (r * Math.sin(a)).toInt()
+                        val alpha = 255 - i * 30
+                        g2.color =
+                            JBColor(
+                                Color(accentGreen.red, accentGreen.green, accentGreen.blue, alpha.coerceIn(40, 255)),
+                                Color(accentGreen.red, accentGreen.green, accentGreen.blue, alpha.coerceIn(40, 255)),
+                            )
+                        val dotSize = 4 - (i * 0.3).toInt()
+                        g2.fillOval(x - dotSize / 2, y - dotSize / 2, dotSize.coerceAtLeast(2), dotSize.coerceAtLeast(2))
+                    }
+                }
+
+                fun rotate() {
+                    angle = (angle + 30) % 360
+                    repaint()
+                }
+            }
+
+        val spinnerWrapper = JPanel(FlowLayout(FlowLayout.CENTER))
+        spinnerWrapper.isOpaque = false
+        spinnerWrapper.add(spinner)
+
+        val textLabel = JBLabel("Analyzing dependencies...")
+        textLabel.foreground = subtleText
+        textLabel.horizontalAlignment = SwingConstants.CENTER
+        textLabel.border = JBUI.Borders.emptyTop(8)
+
+        panel.add(spinnerWrapper, BorderLayout.CENTER)
+        panel.add(textLabel, BorderLayout.SOUTH)
+
+        spinnerTimer?.stop()
+        spinnerTimer = Timer(60) { spinner.rotate() }
+        spinnerTimer?.start()
+
+        return panel
+    }
+
+    private fun stopSpinner() {
+        spinnerTimer?.stop()
+        spinnerTimer = null
     }
 
     private fun addSummaryBadge(
@@ -378,6 +546,16 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
     }
 
     private fun addCard(result: DependencyAnalysisResult) {
+        val wrapper = buildCardPanel(result)
+        resultsPanel.add(wrapper)
+    }
+
+    private fun buildCardPanel(result: DependencyAnalysisResult): JPanel {
+        val wrapper = JPanel()
+        wrapper.layout = BoxLayout(wrapper, BoxLayout.Y_AXIS)
+        wrapper.isOpaque = false
+        wrapper.alignmentX = Component.LEFT_ALIGNMENT
+
         val card =
             object : JPanel(BorderLayout()) {
                 override fun paintComponent(g: Graphics) {
@@ -488,8 +666,9 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         card.add(leftPanel, BorderLayout.CENTER)
         card.add(rightPanel, BorderLayout.EAST)
 
-        resultsPanel.add(Box.createVerticalStrut(4))
-        resultsPanel.add(card)
+        wrapper.add(Box.createVerticalStrut(4))
+        wrapper.add(card)
+        return wrapper
     }
 
     private fun showEmptyState(message: String) {

@@ -2,6 +2,8 @@ plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
     id("org.jetbrains.intellij.platform") version "2.1.0"
+    id("com.diffplug.spotless") version "6.25.0"
+    id("com.github.spotbugs") version "6.0.9"
 }
 
 group = "com.dependencyscreamer"
@@ -58,6 +60,27 @@ intellijPlatform {
     }
 }
 
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint("1.2.1")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint("1.2.1")
+    }
+}
+
+spotbugs {
+    ignoreFailures.set(false)
+    showStackTraces.set(true)
+    showProgress.set(true)
+    effort.set(com.github.spotbugs.snom.Effort.MAX)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.LOW)
+}
+
 tasks {
     test {
         useJUnit()
@@ -66,5 +89,10 @@ tasks {
     // Disable until extension classes are implemented
     buildSearchableOptions {
         enabled = false
+    }
+
+    withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
+        reports.create("html") { required.set(true) }
+        reports.create("xml") { required.set(false) }
     }
 }

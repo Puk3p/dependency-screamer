@@ -5,4 +5,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "nexus-version-guard"
+rootProject.name = "dependency-screamer"

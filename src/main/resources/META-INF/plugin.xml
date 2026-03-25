@@ -1,0 +1,15 @@
+<idea-plugin>
+    <id>com.dependencyscreamer</id>
+    <name>Dependency Screamer</name>
+    <vendor>dependency-screamer</vendor>
+    <description><![CDATA[
+        Checks local pom.xml dependencies against Nexus Repository and warns when newer versions are available.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.xml</depends>
+
+    <!-- Extensions will be registered as implementation classes are added -->
+    <extensions defaultExtensionNs="com.intellij">
+    </extensions>
+</idea-plugin>

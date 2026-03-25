@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.1.0"
 }
 
-group = "com.nexusversionguard"
+group = "com.dependencyscreamer"
 version = "1.0.0"
 
 repositories {
@@ -40,8 +40,8 @@ kotlin {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "com.nexusversionguard"
-        name = "Nexus Version Guard"
+        id = "com.dependencyscreamer"
+        name = "Dependency Screamer"
         version = project.version.toString()
         description = "Checks local pom.xml dependencies against Nexus and warns when newer versions are available."
 
@@ -61,5 +61,10 @@ intellijPlatform {
 tasks {
     test {
         useJUnit()
+    }
+
+    // Disable until extension classes are implemented
+    buildSearchableOptions {
+        enabled = false
     }
 }

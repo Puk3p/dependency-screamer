@@ -40,7 +40,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-version-guard-${{ github.sha }}
+          name: dependency-screamer-${{ github.sha }}
           path: build/distributions/*.zip
           retention-days: 14
 

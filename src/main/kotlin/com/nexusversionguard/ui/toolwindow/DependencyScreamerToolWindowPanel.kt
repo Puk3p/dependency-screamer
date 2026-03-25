@@ -420,7 +420,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                         val config = NexusGuardSettings.getInstance().getConfig()
                         val base = config.baseUrl.trimEnd('/')
                         val repo = config.repositories.firstOrNull() ?: ""
-                        val groupPath = dep.groupId.replace('.', '/')
+                        val groupPath = dep.groupId.replace(".", "%2F")
                         val version = result.latestVersion?.version ?: dep.version
                         val url = "$base/#browse/browse:$repo:$groupPath%2F${dep.artifactId}%2F$version"
                         BrowserUtil.browse(url)

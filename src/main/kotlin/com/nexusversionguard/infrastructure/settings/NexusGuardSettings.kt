@@ -56,6 +56,7 @@ class NexusGuardSettings :
             password = password,
             ignoreSnapshots = ignoreSnapshots,
             timeoutSeconds = timeoutSeconds,
+            groupFilter = groupFilter,
         )
     }
 

@@ -1,5 +1,6 @@
 package com.nexusversionguard.ui.toolwindow
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
@@ -253,10 +254,8 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                 val service = DependencyAnalysisServiceProvider.getInstance().getService()
                 val results = service.analyzeDependencies(content).join()
 
-                val filtered = applyGroupFilter(results, settings.groupFilter)
-
                 SwingUtilities.invokeLater {
-                    displayResults(filtered)
+                    displayResults(results)
                     scanButton.isEnabled = true
                     scanButton.text = "Scan"
                 }
@@ -268,17 +267,6 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                     scanButton.text = "Scan"
                 }
             }
-        }
-    }
-
-    private fun applyGroupFilter(
-        results: List<DependencyAnalysisResult>,
-        filter: String,
-    ): List<DependencyAnalysisResult> {
-        if (filter.isBlank()) return results
-        val prefixes = filter.split(",").map { it.trim() }.filter { it.isNotBlank() }
-        return results.filter { result ->
-            prefixes.any { prefix -> result.dependency.groupId.startsWith(prefix) }
         }
     }
 
@@ -404,7 +392,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         card.isOpaque = false
         card.border = JBUI.Borders.empty(8, 10)
         card.alignmentX = Component.LEFT_ALIGNMENT
-        card.maximumSize = Dimension(Int.MAX_VALUE, 56)
+        card.maximumSize = Dimension(Int.MAX_VALUE, 72)
 
         val dep = result.dependency
 
@@ -421,14 +409,38 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         leftPanel.add(nameLabel)
         leftPanel.add(groupLabel)
 
-        val versionText =
-            when (result.status) {
-                DependencyStatus.OUTDATED -> "${dep.version}  >>  ${result.latestVersion?.version}"
-                DependencyStatus.UP_TO_DATE -> dep.version
-                DependencyStatus.ERROR -> dep.version
-                DependencyStatus.NOT_FOUND -> "${dep.version}  (not found)"
-                DependencyStatus.UNRESOLVED -> dep.rawVersion
-            }
+        if (result.status == DependencyStatus.OUTDATED && result.latestVersion != null) {
+            val nexusLink = JBLabel("View in Nexus")
+            nexusLink.font = nexusLink.font.deriveFont(10.5f)
+            nexusLink.foreground = JBColor(Color(56, 132, 244), Color(88, 166, 255))
+            nexusLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            nexusLink.addMouseListener(
+                object : MouseAdapter() {
+                    override fun mouseClicked(e: MouseEvent?) {
+                        val config = NexusGuardSettings.getInstance().getConfig()
+                        val base = config.baseUrl.trimEnd('/')
+                        val repo = config.repositories.firstOrNull() ?: ""
+                        val groupPath = dep.groupId.replace('.', '/')
+                        val version = result.latestVersion?.version ?: dep.version
+                        val url = "$base/#browse/browse:$repo:$groupPath%2F${dep.artifactId}%2F$version"
+                        BrowserUtil.browse(url)
+                    }
+
+                    override fun mouseEntered(e: MouseEvent?) {
+                        nexusLink.text = "<html><u>View in Nexus</u></html>"
+                    }
+
+                    override fun mouseExited(e: MouseEvent?) {
+                        nexusLink.text = "View in Nexus"
+                    }
+                },
+            )
+            leftPanel.add(nexusLink)
+        }
+
+        val rightPanel = JPanel()
+        rightPanel.layout = BoxLayout(rightPanel, BoxLayout.Y_AXIS)
+        rightPanel.isOpaque = false
 
         val versionColor =
             when (result.status) {
@@ -438,13 +450,43 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                 DependencyStatus.UNRESOLVED -> subtleText
             }
 
-        val versionLabel = JBLabel(versionText)
-        versionLabel.font = versionLabel.font.deriveFont(Font.BOLD, 11.5f)
-        versionLabel.foreground = versionColor
-        versionLabel.horizontalAlignment = SwingConstants.RIGHT
+        when (result.status) {
+            DependencyStatus.OUTDATED -> {
+                val currentLabel = JBLabel(dep.version)
+                currentLabel.font = currentLabel.font.deriveFont(11f)
+                currentLabel.foreground = subtleText
+                currentLabel.horizontalAlignment = SwingConstants.RIGHT
+                currentLabel.alignmentX = Component.RIGHT_ALIGNMENT
+
+                val latestLabel = JBLabel(result.latestVersion?.version ?: "")
+                latestLabel.font = latestLabel.font.deriveFont(Font.BOLD, 12f)
+                latestLabel.foreground = versionColor
+                latestLabel.horizontalAlignment = SwingConstants.RIGHT
+                latestLabel.alignmentX = Component.RIGHT_ALIGNMENT
+
+                rightPanel.add(currentLabel)
+                rightPanel.add(latestLabel)
+            }
+            else -> {
+                val versionText =
+                    when (result.status) {
+                        DependencyStatus.UP_TO_DATE -> dep.version
+                        DependencyStatus.ERROR -> dep.version
+                        DependencyStatus.NOT_FOUND -> "${dep.version} (not found)"
+                        DependencyStatus.UNRESOLVED -> dep.rawVersion
+                        else -> dep.version
+                    }
+                val versionLabel = JBLabel(versionText)
+                versionLabel.font = versionLabel.font.deriveFont(Font.BOLD, 11.5f)
+                versionLabel.foreground = versionColor
+                versionLabel.horizontalAlignment = SwingConstants.RIGHT
+                versionLabel.alignmentX = Component.RIGHT_ALIGNMENT
+                rightPanel.add(versionLabel)
+            }
+        }
 
         card.add(leftPanel, BorderLayout.CENTER)
-        card.add(versionLabel, BorderLayout.EAST)
+        card.add(rightPanel, BorderLayout.EAST)
 
         resultsPanel.add(Box.createVerticalStrut(4))
         resultsPanel.add(card)

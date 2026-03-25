@@ -23,8 +23,19 @@ class DependencyAnalysisService(
             return CompletableFuture.completedFuture(emptyList())
         }
 
-        val dependencies = dependencySource.extractDependencies(pomContent)
+        val allDependencies = dependencySource.extractDependencies(pomContent)
         val config = configurationProvider.getConfig()
+
+        val dependencies =
+            if (config.hasGroupFilter) {
+                allDependencies.filter { dep ->
+                    config.groupPrefixes.any { prefix ->
+                        dep.groupId.lowercase().startsWith(prefix)
+                    }
+                }
+            } else {
+                allDependencies
+            }
 
         val futures =
             dependencies.map { dependency ->

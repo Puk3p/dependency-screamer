@@ -9,7 +9,31 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.xml</depends>
 
-    <!-- Extensions will be registered as implementation classes are added -->
     <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+                serviceImplementation="com.nexusversionguard.infrastructure.settings.NexusGuardSettings"/>
+
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.nexusversionguard.ui.settings.NexusGuardConfigurable"
+                id="com.nexusversionguard.settings"
+                displayName="Dependency Screamer"/>
+
+        <localInspection
+                language="XML"
+                groupName="Dependency Screamer"
+                displayName="Outdated Maven dependency"
+                shortName="NexusOutdatedDependency"
+                level="WARNING"
+                enabledByDefault="true"
+                implementationClass="com.nexusversionguard.ui.inspection.OutdatedDependencyInspection"/>
+
+        <annotator
+                language="XML"
+                implementationClass="com.nexusversionguard.ui.annotator.DependencyVersionAnnotator"/>
+
+        <notificationGroup
+                id="Dependency Screamer"
+                displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

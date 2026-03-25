@@ -59,30 +59,59 @@ class NexusRepositoryClient(
         coordinates: MavenCoordinates,
         repository: String,
     ): CompletableFuture<List<VersionInfo>> {
-        val url = buildSearchUrl(coordinates, repository)
+        return fetchAllPages(coordinates, repository, null, mutableListOf())
+    }
+
+    private fun fetchAllPages(
+        coordinates: MavenCoordinates,
+        repository: String,
+        continuationToken: String?,
+        accumulated: MutableList<VersionInfo>,
+    ): CompletableFuture<List<VersionInfo>> {
+        val url = buildSearchUrl(coordinates, repository, continuationToken)
 
         return buildRequest(url).thenCompose { request ->
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-        }.thenApply { response ->
+        }.thenCompose { response ->
             if (response.statusCode() == 200) {
-                parseVersionsResponse(response.body())
+                val body = response.body()
+                val jsonObject = gson.fromJson(body, JsonObject::class.java)
+                val versions = parseVersionsFromJson(jsonObject)
+                accumulated.addAll(versions)
+
+                val nextToken = jsonObject.get("continuationToken")?.asString
+                if (!nextToken.isNullOrBlank()) {
+                    fetchAllPages(coordinates, repository, nextToken, accumulated)
+                } else {
+                    CompletableFuture.completedFuture(accumulated.toList())
+                }
             } else {
-                emptyList()
+                LOG.warn(
+                    "Nexus search returned ${response.statusCode()} for " +
+                        "${coordinates.groupId}:${coordinates.artifactId} in $repository",
+                )
+                CompletableFuture.completedFuture(accumulated.toList())
             }
-        }.exceptionally {
-            emptyList()
+        }.exceptionally { ex ->
+            LOG.warn("Nexus search failed for ${coordinates.groupId}:${coordinates.artifactId}: ${ex.message}")
+            accumulated.toList()
         }
     }
 
     private fun buildSearchUrl(
         coordinates: MavenCoordinates,
         repository: String,
+        continuationToken: String? = null,
     ): String {
         val base = config.baseUrl.trimEnd('/')
-        return "$base/service/rest/v1/search?" +
-            "repository=$repository" +
-            "&group=${coordinates.groupId}" +
-            "&name=${coordinates.artifactId}"
+        val sb = StringBuilder("$base/service/rest/v1/search?")
+        sb.append("repository=$repository")
+        sb.append("&maven.groupId=${coordinates.groupId}")
+        sb.append("&maven.artifactId=${coordinates.artifactId}")
+        if (!continuationToken.isNullOrBlank()) {
+            sb.append("&continuationToken=$continuationToken")
+        }
+        return sb.toString()
     }
 
     private fun buildRequest(url: String): CompletableFuture<HttpRequest> {
@@ -103,8 +132,7 @@ class NexusRepositoryClient(
         }
     }
 
-    private fun parseVersionsResponse(body: String): List<VersionInfo> {
-        val jsonObject = gson.fromJson(body, JsonObject::class.java)
+    private fun parseVersionsFromJson(jsonObject: JsonObject): List<VersionInfo> {
         val items = jsonObject.getAsJsonArray("items") ?: return emptyList()
 
         return items.mapNotNull { item ->
@@ -119,5 +147,9 @@ class NexusRepositoryClient(
                 null
             }
         }
+    }
+
+    companion object {
+        private val LOG = com.intellij.openapi.diagnostic.Logger.getInstance(NexusRepositoryClient::class.java)
     }
 }

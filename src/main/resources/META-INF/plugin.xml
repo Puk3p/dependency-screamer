@@ -13,6 +13,9 @@
         <applicationService
                 serviceImplementation="com.nexusversionguard.infrastructure.settings.NexusGuardSettings"/>
 
+        <applicationService
+                serviceImplementation="com.nexusversionguard.application.service.DependencyAnalysisServiceProvider"/>
+
         <applicationConfigurable
                 parentId="tools"
                 instance="com.nexusversionguard.ui.settings.NexusGuardConfigurable"
@@ -42,5 +45,8 @@
                 secondary="false"
                 icon="/icons/logo.svg"
                 factoryClass="com.nexusversionguard.ui.toolwindow.DependencyScreamerToolWindowFactory"/>
+
+        <postStartupActivity
+                implementation="com.nexusversionguard.ui.startup.NexusGuardStartupActivity"/>
     </extensions>
 </idea-plugin>

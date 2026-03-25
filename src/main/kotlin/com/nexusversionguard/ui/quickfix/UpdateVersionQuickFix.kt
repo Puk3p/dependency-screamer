@@ -2,6 +2,7 @@ package com.nexusversionguard.ui.quickfix
 
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.psi.xml.XmlTag
 
@@ -17,8 +18,16 @@ class UpdateVersionQuickFix(
         descriptor: ProblemDescriptor,
     ) {
         val element = descriptor.psiElement ?: return
-        val versionTag = findVersionTag(element)
-        versionTag?.value?.text = latestVersion
+        val versionTag =
+            if (element is XmlTag && element.name == "version") {
+                element
+            } else {
+                findVersionTag(element)
+            } ?: return
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            versionTag.value.text = latestVersion
+        }
     }
 
     private fun findVersionTag(element: com.intellij.psi.PsiElement): XmlTag? {

@@ -1,10 +1,15 @@
 package com.nexusversionguard.infrastructure.settings
 
+import com.intellij.credentialStore.CredentialAttributes
+import com.intellij.credentialStore.Credentials
+import com.intellij.credentialStore.generateServiceName
+import com.intellij.ide.passwordSafe.PasswordSafe
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
+import com.intellij.util.xmlb.annotations.Transient
 import com.nexusversionguard.domain.model.NexusConfig
 import com.nexusversionguard.domain.port.ConfigurationProvider
 
@@ -18,9 +23,23 @@ class NexusGuardSettings :
     var baseUrl: String = ""
     var repositories: String = ""
     var username: String = ""
-    var password: String = ""
     var ignoreSnapshots: Boolean = true
     var timeoutSeconds: Int = 10
+
+    @get:Transient
+    var password: String
+        get() {
+            val attributes = credentialAttributes()
+            return PasswordSafe.instance.getPassword(attributes).orEmpty()
+        }
+        set(value) {
+            val attributes = credentialAttributes()
+            PasswordSafe.instance.set(attributes, Credentials(username, value))
+        }
+
+    private fun credentialAttributes(): CredentialAttributes {
+        return CredentialAttributes(generateServiceName("DependencyScreamer", "NexusCredentials"))
+    }
 
     override fun getState(): NexusGuardSettings = this
 
@@ -37,6 +56,14 @@ class NexusGuardSettings :
             ignoreSnapshots = ignoreSnapshots,
             timeoutSeconds = timeoutSeconds,
         )
+    }
+
+    fun setPasswordValue(value: String) {
+        password = value
+    }
+
+    fun getPasswordValue(): String {
+        return password
     }
 
     override fun isConfigured(): Boolean = getConfig().isConfigured

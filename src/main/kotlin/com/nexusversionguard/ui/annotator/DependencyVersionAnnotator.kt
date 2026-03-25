@@ -5,13 +5,9 @@ import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.PsiElement
 import com.intellij.psi.xml.XmlTag
-import com.nexusversionguard.application.service.DependencyAnalysisService
+import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
 import com.nexusversionguard.domain.model.DependencyStatus
-import com.nexusversionguard.infrastructure.client.NexusRepositoryClient
-import com.nexusversionguard.infrastructure.parser.MavenPropertyResolver
-import com.nexusversionguard.infrastructure.parser.PomXmlDependencySource
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
-import com.nexusversionguard.infrastructure.version.SemanticVersionComparator
 
 class DependencyVersionAnnotator : Annotator {
     override fun annotate(
@@ -35,7 +31,7 @@ class DependencyVersionAnnotator : Annotator {
         val settings = NexusGuardSettings.getInstance()
         if (!settings.isConfigured()) return
 
-        val service = createAnalysisService(settings)
+        val service = DependencyAnalysisServiceProvider.getInstance().getService()
         val cached = service.getCachedResult(coordinatesKey) ?: return
 
         when (cached.status) {
@@ -56,17 +52,4 @@ class DependencyVersionAnnotator : Annotator {
         }
     }
 
-    private fun createAnalysisService(settings: NexusGuardSettings): DependencyAnalysisService {
-        val propertyResolver = MavenPropertyResolver()
-        val dependencySource = PomXmlDependencySource(propertyResolver)
-        val versionComparator = SemanticVersionComparator()
-        val repositoryClient = NexusRepositoryClient(settings.getConfig(), versionComparator)
-
-        return DependencyAnalysisService(
-            dependencySource = dependencySource,
-            repositoryClient = repositoryClient,
-            versionComparator = versionComparator,
-            configurationProvider = settings,
-        )
-    }
 }

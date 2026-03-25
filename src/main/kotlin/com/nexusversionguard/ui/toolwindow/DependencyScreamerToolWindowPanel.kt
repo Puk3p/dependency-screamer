@@ -8,14 +8,10 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
-import com.nexusversionguard.application.service.DependencyAnalysisService
+import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
 import com.nexusversionguard.domain.model.DependencyAnalysisResult
 import com.nexusversionguard.domain.model.DependencyStatus
-import com.nexusversionguard.infrastructure.client.NexusRepositoryClient
-import com.nexusversionguard.infrastructure.parser.MavenPropertyResolver
-import com.nexusversionguard.infrastructure.parser.PomXmlDependencySource
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
-import com.nexusversionguard.infrastructure.version.SemanticVersionComparator
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Font
@@ -107,7 +103,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 val content = String(pomFile.contentsToByteArray())
-                val service = createAnalysisService(settings)
+                val service = DependencyAnalysisServiceProvider.getInstance().getService()
                 val results = service.analyzeDependencies(content).join()
 
                 SwingUtilities.invokeLater {
@@ -228,17 +224,4 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         resultsPanel.add(label)
     }
 
-    private fun createAnalysisService(settings: NexusGuardSettings): DependencyAnalysisService {
-        val propertyResolver = MavenPropertyResolver()
-        val dependencySource = PomXmlDependencySource(propertyResolver)
-        val versionComparator = SemanticVersionComparator()
-        val repositoryClient = NexusRepositoryClient(settings.getConfig(), versionComparator)
-
-        return DependencyAnalysisService(
-            dependencySource = dependencySource,
-            repositoryClient = repositoryClient,
-            versionComparator = versionComparator,
-            configurationProvider = settings,
-        )
-    }
 }

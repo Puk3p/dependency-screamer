@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2024.2")
+        intellijIdeaCommunity("2024.3.1")
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.idea.maven")
 
@@ -48,7 +48,7 @@ intellijPlatform {
         description = "Checks local pom.xml dependencies against Nexus and warns when newer versions are available."
 
         ideaVersion {
-            sinceBuild = "242"
+            sinceBuild = "243"
             untilBuild = "251.*"
         }
     }

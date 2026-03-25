@@ -6,13 +6,9 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.VfsUtil
-import com.nexusversionguard.application.service.DependencyAnalysisService
+import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
 import com.nexusversionguard.domain.model.DependencyStatus
-import com.nexusversionguard.infrastructure.client.NexusRepositoryClient
-import com.nexusversionguard.infrastructure.parser.MavenPropertyResolver
-import com.nexusversionguard.infrastructure.parser.PomXmlDependencySource
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
-import com.nexusversionguard.infrastructure.version.SemanticVersionComparator
 import java.nio.file.Path
 
 class NexusGuardStartupActivity : ProjectActivity {
@@ -29,7 +25,7 @@ class NexusGuardStartupActivity : ProjectActivity {
         val pomFile = VfsUtil.findFile(Path.of(basePath, "pom.xml"), true) ?: return
         val content = String(pomFile.contentsToByteArray())
 
-        val service = createAnalysisService(settings)
+        val service = DependencyAnalysisServiceProvider.getInstance().getService()
 
         try {
             val results = service.analyzeDependencies(content).join()
@@ -52,17 +48,4 @@ class NexusGuardStartupActivity : ProjectActivity {
         }
     }
 
-    private fun createAnalysisService(settings: NexusGuardSettings): DependencyAnalysisService {
-        val propertyResolver = MavenPropertyResolver()
-        val dependencySource = PomXmlDependencySource(propertyResolver)
-        val versionComparator = SemanticVersionComparator()
-        val repositoryClient = NexusRepositoryClient(settings.getConfig(), versionComparator)
-
-        return DependencyAnalysisService(
-            dependencySource = dependencySource,
-            repositoryClient = repositoryClient,
-            versionComparator = versionComparator,
-            configurationProvider = settings,
-        )
-    }
 }

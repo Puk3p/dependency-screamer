@@ -10,8 +10,12 @@ import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 
 class NexusGuardSettingsPanel {
-    private val baseUrlField = JBTextField()
-    private val repositoriesField = JBTextField()
+    private val baseUrlField = JBTextField().apply {
+        emptyText.text = "e.g. https://nexus.example.com"
+    }
+    private val repositoriesField = JBTextField().apply {
+        emptyText.text = "e.g. maven-releases, maven-snapshots"
+    }
     private val usernameField = JBTextField()
     private val passwordField = JBPasswordField()
     private val ignoreSnapshotsCheckbox = JBCheckBox("Ignore SNAPSHOT versions")

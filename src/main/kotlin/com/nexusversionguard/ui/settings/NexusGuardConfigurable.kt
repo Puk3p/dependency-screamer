@@ -1,6 +1,7 @@
 package com.nexusversionguard.ui.settings
 
 import com.intellij.openapi.options.Configurable
+import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
 import javax.swing.JComponent
 
@@ -37,6 +38,8 @@ class NexusGuardConfigurable : Configurable {
         settings.password = panel.password
         settings.ignoreSnapshots = panel.ignoreSnapshots
         settings.timeoutSeconds = panel.timeoutSeconds
+
+        DependencyAnalysisServiceProvider.getInstance().invalidate()
     }
 
     override fun reset() {

@@ -70,7 +70,7 @@ class DependencyAnalysisService(
         return cache[coordinatesKey]
     }
 
-    private fun analyzeRemote(
+    internal fun analyzeRemote(
         dependency: com.nexusversionguard.domain.model.MavenDependency,
         ignoreSnapshots: Boolean,
     ): CompletableFuture<DependencyAnalysisResult> {
@@ -91,7 +91,7 @@ class DependencyAnalysisService(
             }
     }
 
-    private fun buildResult(
+    internal fun buildResult(
         dependency: com.nexusversionguard.domain.model.MavenDependency,
         versions: List<VersionInfo>,
         ignoreSnapshots: Boolean,

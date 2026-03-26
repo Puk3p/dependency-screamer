@@ -5,9 +5,13 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.XmlElementVisitor
 import com.intellij.psi.xml.XmlTag
-import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
+import com.nexusversionguard.application.service.DependencyAnalysisService
 import com.nexusversionguard.domain.model.DependencyStatus
+import com.nexusversionguard.infrastructure.client.NexusRepositoryClient
+import com.nexusversionguard.infrastructure.parser.MavenPropertyResolver
+import com.nexusversionguard.infrastructure.parser.PomXmlDependencySource
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
+import com.nexusversionguard.infrastructure.version.SemanticVersionComparator
 import com.nexusversionguard.ui.quickfix.UpdateVersionQuickFix
 
 class OutdatedDependencyInspection : LocalInspectionTool() {
@@ -35,7 +39,7 @@ class OutdatedDependencyInspection : LocalInspectionTool() {
                 val artifactId = artifactIdTag.value.text
                 val coordinatesKey = "$groupId:$artifactId"
 
-                val service = DependencyAnalysisServiceProvider.getInstance().getService()
+                val service = createAnalysisService(settings)
                 val cached = service.getCachedResult(coordinatesKey) ?: return
 
                 when (cached.status) {
@@ -67,5 +71,19 @@ class OutdatedDependencyInspection : LocalInspectionTool() {
                 }
             }
         }
+    }
+
+    private fun createAnalysisService(settings: NexusGuardSettings): DependencyAnalysisService {
+        val propertyResolver = MavenPropertyResolver()
+        val dependencySource = PomXmlDependencySource(propertyResolver)
+        val versionComparator = SemanticVersionComparator()
+        val repositoryClient = NexusRepositoryClient(settings.getConfig(), versionComparator)
+
+        return DependencyAnalysisService(
+            dependencySource = dependencySource,
+            repositoryClient = repositoryClient,
+            versionComparator = versionComparator,
+            configurationProvider = settings,
+        )
     }
 }

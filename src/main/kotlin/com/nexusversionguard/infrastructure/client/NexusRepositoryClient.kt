@@ -55,14 +55,14 @@ class NexusRepositoryClient(
         }
     }
 
-    private fun fetchVersionsFromRepository(
+    internal fun fetchVersionsFromRepository(
         coordinates: MavenCoordinates,
         repository: String,
     ): CompletableFuture<List<VersionInfo>> {
         return fetchAllPages(coordinates, repository, null, mutableListOf())
     }
 
-    private fun fetchAllPages(
+    internal fun fetchAllPages(
         coordinates: MavenCoordinates,
         repository: String,
         continuationToken: String?,
@@ -98,7 +98,7 @@ class NexusRepositoryClient(
         }
     }
 
-    private fun buildSearchUrl(
+    internal fun buildSearchUrl(
         coordinates: MavenCoordinates,
         repository: String,
         continuationToken: String? = null,
@@ -114,7 +114,7 @@ class NexusRepositoryClient(
         return sb.toString()
     }
 
-    private fun buildRequest(url: String): CompletableFuture<HttpRequest> {
+    internal fun buildRequest(url: String): CompletableFuture<HttpRequest> {
         return CompletableFuture.supplyAsync {
             val builder =
                 HttpRequest.newBuilder()
@@ -132,7 +132,7 @@ class NexusRepositoryClient(
         }
     }
 
-    private fun parseVersionsFromJson(jsonObject: JsonObject): List<VersionInfo> {
+    internal fun parseVersionsFromJson(jsonObject: JsonObject): List<VersionInfo> {
         val items = jsonObject.getAsJsonArray("items") ?: return emptyList()
 
         return items.mapNotNull { item ->

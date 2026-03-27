@@ -2,9 +2,14 @@ package com.nexusversionguard.ui.toolwindow
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.psi.PsiManager
+import com.intellij.psi.xml.XmlFile
+import com.intellij.psi.xml.XmlTag
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -570,7 +575,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         card.isOpaque = false
         card.border = JBUI.Borders.empty(8, 10)
         card.alignmentX = Component.LEFT_ALIGNMENT
-        card.maximumSize = Dimension(Int.MAX_VALUE, 72)
+        card.maximumSize = Dimension(Int.MAX_VALUE, 80)
 
         val dep = result.dependency
 
@@ -588,6 +593,9 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         leftPanel.add(groupLabel)
 
         if (result.status == DependencyStatus.OUTDATED && result.latestVersion != null) {
+            val linksRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+            linksRow.isOpaque = false
+
             val nexusLink = JBLabel("View in Nexus")
             nexusLink.font = nexusLink.font.deriveFont(10.5f)
             nexusLink.foreground = JBColor(Color(56, 132, 244), Color(88, 166, 255))
@@ -613,7 +621,40 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                     }
                 },
             )
-            leftPanel.add(nexusLink)
+            linksRow.add(nexusLink)
+
+            val updateLink = JBLabel("Update")
+            updateLink.font = updateLink.font.deriveFont(Font.BOLD, 10.5f)
+            updateLink.foreground = accentGreen
+            updateLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            updateLink.addMouseListener(
+                object : MouseAdapter() {
+                    override fun mouseClicked(e: MouseEvent?) {
+                        val latestVersion = result.latestVersion?.version ?: return
+                        val success = updateDependencyVersion(dep.groupId, dep.artifactId, dep.rawVersion, latestVersion)
+                        if (success) {
+                            updateLink.text = "Updated!"
+                            updateLink.foreground = subtleText
+                            updateLink.cursor = Cursor.getDefaultCursor()
+                        }
+                    }
+
+                    override fun mouseEntered(e: MouseEvent?) {
+                        if (updateLink.text == "Update") {
+                            updateLink.text = "<html><u>Update</u></html>"
+                        }
+                    }
+
+                    override fun mouseExited(e: MouseEvent?) {
+                        if (updateLink.text != "Updated!") {
+                            updateLink.text = "Update"
+                        }
+                    }
+                },
+            )
+            linksRow.add(updateLink)
+
+            leftPanel.add(linksRow)
         }
 
         val rightPanel = JPanel()
@@ -669,6 +710,61 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         wrapper.add(Box.createVerticalStrut(4))
         wrapper.add(card)
         return wrapper
+    }
+
+    private fun updateDependencyVersion(
+        groupId: String,
+        artifactId: String,
+        rawVersion: String,
+        newVersion: String,
+    ): Boolean {
+        val basePath = project.basePath ?: return false
+        val pomVirtualFile = LocalFileSystem.getInstance().findFileByPath("$basePath/pom.xml") ?: return false
+        val psiFile = PsiManager.getInstance(project).findFile(pomVirtualFile) as? XmlFile ?: return false
+
+        return try {
+            WriteCommandAction.runWriteCommandAction(project) {
+                val rootTag = psiFile.rootTag ?: return@runWriteCommandAction
+                val isPropertyBased = rawVersion.startsWith("\${")
+
+                if (isPropertyBased) {
+                    val propertyName = rawVersion.removePrefix("\${").removeSuffix("}")
+                    val propertiesTag = rootTag.findFirstSubTag("properties")
+                    val propertyTag = propertiesTag?.findFirstSubTag(propertyName)
+                    propertyTag?.value?.text = newVersion
+                } else {
+                    val depsTag = findAllDependencyTags(rootTag)
+                    for (depTag in depsTag) {
+                        val gid = depTag.findFirstSubTag("groupId")?.value?.text ?: continue
+                        val aid = depTag.findFirstSubTag("artifactId")?.value?.text ?: continue
+                        if (gid == groupId && aid == artifactId) {
+                            val versionTag = depTag.findFirstSubTag("version")
+                            versionTag?.value?.text = newVersion
+                            break
+                        }
+                    }
+                }
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun findAllDependencyTags(rootTag: XmlTag): List<XmlTag> {
+        val result = mutableListOf<XmlTag>()
+        for (child in rootTag.subTags) {
+            if (child.name == "dependencies") {
+                result.addAll(child.findSubTags("dependency"))
+            }
+            if (child.name == "dependencyManagement") {
+                val inner = child.findFirstSubTag("dependencies")
+                if (inner != null) {
+                    result.addAll(inner.findSubTags("dependency"))
+                }
+            }
+        }
+        return result
     }
 
     private fun showEmptyState(message: String) {

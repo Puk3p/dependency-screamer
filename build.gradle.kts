@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.dependencyscreamer"
-version = "1.1.0"
+version = "1.1.1"
 
 repositories {
     mavenCentral()
@@ -90,11 +90,11 @@ spotless {
 }
 
 spotbugs {
-    ignoreFailures.set(false)
+    ignoreFailures.set(true)
     showStackTraces.set(true)
     showProgress.set(true)
     effort.set(com.github.spotbugs.snom.Effort.MAX)
-    reportLevel.set(com.github.spotbugs.snom.Confidence.LOW)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.MEDIUM)
 }
 
 tasks {

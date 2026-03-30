@@ -704,16 +704,18 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         card.isOpaque = false
         card.border = JBUI.Borders.empty(8, 14, 8, 12)
         card.alignmentX = Component.LEFT_ALIGNMENT
-        card.maximumSize = Dimension(Int.MAX_VALUE, if (isOutdated) 72 else 52)
+        card.maximumSize = Dimension(Int.MAX_VALUE, if (isOutdated) 64 else 48)
 
         val dep = result.dependency
 
         val nameLabel = JBLabel(dep.artifactId)
         nameLabel.font = nameLabel.font.deriveFont(Font.BOLD, 12.5f)
+        nameLabel.alignmentX = Component.LEFT_ALIGNMENT
 
         val groupLabel = JBLabel(dep.groupId)
         groupLabel.font = groupLabel.font.deriveFont(11f)
         groupLabel.foreground = subtleText
+        groupLabel.alignmentX = Component.LEFT_ALIGNMENT
 
         val leftPanel = JPanel()
         leftPanel.layout = BoxLayout(leftPanel, BoxLayout.Y_AXIS)
@@ -726,6 +728,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
             val linksRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
             linksRow.isOpaque = false
+            linksRow.alignmentX = Component.LEFT_ALIGNMENT
             linksRow.maximumSize = Dimension(Int.MAX_VALUE, 18)
 
             val linkColor = JBColor(Color(56, 132, 244), Color(88, 166, 255))
@@ -804,20 +807,19 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
         when (result.status) {
             DependencyStatus.OUTDATED -> {
-                val currentLabel = JBLabel(dep.version)
-                currentLabel.font = currentLabel.font.deriveFont(11f)
-                currentLabel.foreground = subtleText
-                currentLabel.horizontalAlignment = SwingConstants.RIGHT
-                currentLabel.alignmentX = Component.RIGHT_ALIGNMENT
-
-                val latestLabel = JBLabel(result.latestVersion?.version ?: "")
-                latestLabel.font = latestLabel.font.deriveFont(Font.BOLD, 12f)
-                latestLabel.foreground = statusColor
-                latestLabel.horizontalAlignment = SwingConstants.RIGHT
-                latestLabel.alignmentX = Component.RIGHT_ALIGNMENT
-
-                rightPanel.add(currentLabel)
-                rightPanel.add(latestLabel)
+                val latest = result.latestVersion?.version ?: ""
+                val versionHtml =
+                    "<html><div style='text-align:right'>" +
+                        "<span style='color:gray;text-decoration:line-through'>${dep.version}</span>" +
+                        " <span style='color:gray'>\u2192</span> " +
+                        "<b>$latest</b>" +
+                        "</div></html>"
+                val versionLabel = JBLabel(versionHtml)
+                versionLabel.font = versionLabel.font.deriveFont(12f)
+                versionLabel.foreground = statusColor
+                versionLabel.horizontalAlignment = SwingConstants.RIGHT
+                versionLabel.alignmentX = Component.RIGHT_ALIGNMENT
+                rightPanel.add(versionLabel)
             }
             else -> {
                 val versionText =

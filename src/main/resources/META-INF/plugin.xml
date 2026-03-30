@@ -45,6 +45,8 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.java</depends>
 
+    <incompatible-with>com.intellij.modules.androidstudio</incompatible-with>
+
     <extensions defaultExtensionNs="com.intellij">
         <applicationService
                 serviceImplementation="com.nexusversionguard.infrastructure.settings.NexusGuardSettings"/>

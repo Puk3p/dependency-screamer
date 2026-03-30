@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.0.21"
-    id("org.jetbrains.intellij.platform") version "2.1.0"
+    id("org.jetbrains.intellij.platform") version "2.11.0"
     id("com.diffplug.spotless") version "6.25.0"
     id("com.github.spotbugs") version "6.0.9"
 }
@@ -18,13 +18,12 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2024.3.1")
+        intellijIdeaCommunity("2025.1")
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.idea.maven")
 
         pluginVerifier()
         zipSigner()
-        instrumentationTools()
     }
 
     implementation("com.google.code.gson:gson:2.10.1")

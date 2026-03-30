@@ -391,11 +391,14 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
     ): List<JPanel> {
         val panels = mutableListOf<JPanel>()
 
-        val header = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        val header = JPanel(BorderLayout())
         header.isOpaque = false
         header.alignmentX = Component.LEFT_ALIGNMENT
         header.border = JBUI.Borders.empty(12, 0, 4, 0)
         header.maximumSize = Dimension(Int.MAX_VALUE, 36)
+
+        val leftHeader = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        leftHeader.isOpaque = false
 
         val dot =
             object : JPanel() {
@@ -414,11 +417,24 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         label.foreground = color
         label.border = JBUI.Borders.emptyLeft(4)
 
-        header.add(dot)
-        header.add(label)
-        panels.add(header)
+        leftHeader.add(dot)
+        leftHeader.add(label)
+        header.add(leftHeader, BorderLayout.WEST)
 
-        items.forEach { panels.add(buildCardPanel(it)) }
+        if (title == "Outdated" && items.isNotEmpty()) {
+            val cardPanels = mutableListOf<JPanel>()
+            items.forEach { cardPanels.add(buildCardPanel(it)) }
+
+            val updateAllLink = createUpdateAllLink(items, cardPanels)
+            header.add(updateAllLink, BorderLayout.EAST)
+
+            panels.add(header)
+            panels.addAll(cardPanels)
+        } else {
+            panels.add(header)
+            items.forEach { panels.add(buildCardPanel(it)) }
+        }
+
         return panels
     }
 
@@ -520,11 +536,14 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         color: Color,
         items: List<DependencyAnalysisResult>,
     ) {
-        val header = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        val header = JPanel(BorderLayout())
         header.isOpaque = false
         header.alignmentX = Component.LEFT_ALIGNMENT
         header.border = JBUI.Borders.empty(12, 0, 4, 0)
         header.maximumSize = Dimension(Int.MAX_VALUE, 36)
+
+        val leftHeader = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        leftHeader.isOpaque = false
 
         val dot =
             object : JPanel() {
@@ -543,16 +562,115 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         label.foreground = color
         label.border = JBUI.Borders.emptyLeft(4)
 
-        header.add(dot)
-        header.add(label)
-        resultsPanel.add(header)
+        leftHeader.add(dot)
+        leftHeader.add(label)
+        header.add(leftHeader, BorderLayout.WEST)
 
-        items.forEach { addCard(it) }
+        if (title == "Outdated" && items.isNotEmpty()) {
+            val cardPanels = mutableListOf<JPanel>()
+            items.forEach { cardPanels.add(buildCardPanel(it)) }
+
+            val updateAllLink = createUpdateAllLink(items, cardPanels)
+            header.add(updateAllLink, BorderLayout.EAST)
+
+            resultsPanel.add(header)
+            cardPanels.forEach { resultsPanel.add(it) }
+        } else {
+            resultsPanel.add(header)
+            items.forEach { addCard(it) }
+        }
     }
 
     private fun addCard(result: DependencyAnalysisResult) {
         val wrapper = buildCardPanel(result)
         resultsPanel.add(wrapper)
+    }
+
+    private fun createUpdateAllLink(
+        items: List<DependencyAnalysisResult>,
+        cardPanels: List<JPanel>,
+    ): JBLabel {
+        val updateAllLink =
+            JBLabel("<html><b><span style='text-decoration:none'>Update All</span></b></html>")
+        updateAllLink.font = updateAllLink.font.deriveFont(11f)
+        updateAllLink.foreground = accentGreen
+        updateAllLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        updateAllLink.border = JBUI.Borders.emptyRight(4)
+        updateAllLink.addMouseListener(
+            object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent?) {
+                    if (updateAllLink.text.contains("Updated") || updateAllLink.text.contains("Updating")) {
+                        return
+                    }
+                    updateAllLink.text =
+                        "<html><b><span style='text-decoration:none'>Updating...</span></b></html>"
+                    updateAllLink.foreground = subtleText
+                    updateAllLink.cursor = Cursor.getDefaultCursor()
+
+                    ApplicationManager.getApplication().executeOnPooledThread {
+                        var successCount = 0
+                        for (result in items) {
+                            val dep = result.dependency
+                            val latestVersion = result.latestVersion?.version ?: continue
+                            val success =
+                                updateDependencyVersion(dep.groupId, dep.artifactId, dep.rawVersion, latestVersion)
+                            if (success) successCount++
+                        }
+
+                        SwingUtilities.invokeLater {
+                            updateAllLink.text =
+                                "<html><b><span style='text-decoration:none'>Updated $successCount/${items.size}</span></b></html>"
+
+                            for (cardWrapper in cardPanels) {
+                                updateCardAfterBulkUpdate(cardWrapper)
+                            }
+                            resultsPanel.revalidate()
+                            resultsPanel.repaint()
+                        }
+                    }
+                }
+
+                override fun mouseEntered(e: MouseEvent?) {
+                    if (!updateAllLink.text.contains("Updated") && !updateAllLink.text.contains("Updating")) {
+                        updateAllLink.text =
+                            "<html><b><span style='text-decoration:underline'>Update All</span></b></html>"
+                    }
+                }
+
+                override fun mouseExited(e: MouseEvent?) {
+                    if (!updateAllLink.text.contains("Updated") && !updateAllLink.text.contains("Updating")) {
+                        updateAllLink.text =
+                            "<html><b><span style='text-decoration:none'>Update All</span></b></html>"
+                    }
+                }
+            },
+        )
+        return updateAllLink
+    }
+
+    private fun updateCardAfterBulkUpdate(cardWrapper: JPanel) {
+        for (component in cardWrapper.components) {
+            if (component is JPanel) {
+                updateLinksInPanel(component)
+            }
+        }
+    }
+
+    private fun updateLinksInPanel(panel: JPanel) {
+        for (component in panel.components) {
+            if (component is JPanel) {
+                updateLinksInPanel(component)
+            } else if (component is JBLabel) {
+                if (component.text?.contains("Update") == true &&
+                    !component.text.contains("Updated") &&
+                    component.foreground == accentGreen
+                ) {
+                    component.text = "<html><span style='text-decoration:none'>Updated!</span></html>"
+                    component.foreground = subtleText
+                    component.cursor = Cursor.getDefaultCursor()
+                }
+            }
+        }
     }
 
     private fun buildCardPanel(result: DependencyAnalysisResult): JPanel {
@@ -561,26 +679,37 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         wrapper.isOpaque = false
         wrapper.alignmentX = Component.LEFT_ALIGNMENT
 
+        val isOutdated = result.status == DependencyStatus.OUTDATED && result.latestVersion != null
+        val statusColor =
+            when (result.status) {
+                DependencyStatus.OUTDATED -> accentOrange
+                DependencyStatus.UP_TO_DATE -> accentGreen
+                DependencyStatus.ERROR, DependencyStatus.NOT_FOUND -> accentRed
+                DependencyStatus.UNRESOLVED -> subtleText
+            }
+
         val card =
             object : JPanel(BorderLayout()) {
                 override fun paintComponent(g: Graphics) {
                     val g2 = g as Graphics2D
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                     g2.color = cardBg
-                    g2.fillRoundRect(0, 0, width, height, 8, 8)
+                    g2.fillRoundRect(0, 0, width, height, 10, 10)
                     g2.color = cardBorder
-                    g2.drawRoundRect(0, 0, width - 1, height - 1, 8, 8)
+                    g2.drawRoundRect(0, 0, width - 1, height - 1, 10, 10)
+                    g2.color = statusColor
+                    g2.fillRoundRect(0, 0, 4, height, 4, 4)
                 }
             }
         card.isOpaque = false
-        card.border = JBUI.Borders.empty(8, 10)
+        card.border = JBUI.Borders.empty(8, 14, 8, 12)
         card.alignmentX = Component.LEFT_ALIGNMENT
-        card.maximumSize = Dimension(Int.MAX_VALUE, 80)
+        card.maximumSize = Dimension(Int.MAX_VALUE, if (isOutdated) 72 else 52)
 
         val dep = result.dependency
 
         val nameLabel = JBLabel(dep.artifactId)
-        nameLabel.font = nameLabel.font.deriveFont(Font.BOLD, 12f)
+        nameLabel.font = nameLabel.font.deriveFont(Font.BOLD, 12.5f)
 
         val groupLabel = JBLabel(dep.groupId)
         groupLabel.font = groupLabel.font.deriveFont(11f)
@@ -592,13 +721,18 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         leftPanel.add(nameLabel)
         leftPanel.add(groupLabel)
 
-        if (result.status == DependencyStatus.OUTDATED && result.latestVersion != null) {
-            val linksRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
-            linksRow.isOpaque = false
+        if (isOutdated) {
+            leftPanel.add(Box.createVerticalStrut(2))
 
-            val nexusLink = JBLabel("View in Nexus")
+            val linksRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+            linksRow.isOpaque = false
+            linksRow.maximumSize = Dimension(Int.MAX_VALUE, 18)
+
+            val linkColor = JBColor(Color(56, 132, 244), Color(88, 166, 255))
+
+            val nexusLink = JBLabel("<html><span style='text-decoration:none'>View in Nexus</span></html>")
             nexusLink.font = nexusLink.font.deriveFont(10.5f)
-            nexusLink.foreground = JBColor(Color(56, 132, 244), Color(88, 166, 255))
+            nexusLink.foreground = linkColor
             nexusLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             nexusLink.addMouseListener(
                 object : MouseAdapter() {
@@ -613,18 +747,23 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                     }
 
                     override fun mouseEntered(e: MouseEvent?) {
-                        nexusLink.text = "<html><u>View in Nexus</u></html>"
+                        nexusLink.text = "<html><span style='text-decoration:underline'>View in Nexus</span></html>"
                     }
 
                     override fun mouseExited(e: MouseEvent?) {
-                        nexusLink.text = "View in Nexus"
+                        nexusLink.text = "<html><span style='text-decoration:none'>View in Nexus</span></html>"
                     }
                 },
             )
             linksRow.add(nexusLink)
 
-            val updateLink = JBLabel("Update")
-            updateLink.font = updateLink.font.deriveFont(Font.BOLD, 10.5f)
+            val separator = JBLabel("  ·  ")
+            separator.foreground = subtleText
+            separator.font = separator.font.deriveFont(10.5f)
+            linksRow.add(separator)
+
+            val updateLink = JBLabel("<html><b><span style='text-decoration:none'>Update</span></b></html>")
+            updateLink.font = updateLink.font.deriveFont(10.5f)
             updateLink.foreground = accentGreen
             updateLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             updateLink.addMouseListener(
@@ -633,21 +772,23 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                         val latestVersion = result.latestVersion?.version ?: return
                         val success = updateDependencyVersion(dep.groupId, dep.artifactId, dep.rawVersion, latestVersion)
                         if (success) {
-                            updateLink.text = "Updated!"
+                            updateLink.text = "<html><span style='text-decoration:none'>Updated!</span></html>"
                             updateLink.foreground = subtleText
                             updateLink.cursor = Cursor.getDefaultCursor()
                         }
                     }
 
                     override fun mouseEntered(e: MouseEvent?) {
-                        if (updateLink.text == "Update") {
-                            updateLink.text = "<html><u>Update</u></html>"
+                        if (!updateLink.text.contains("Updated")) {
+                            updateLink.text =
+                                "<html><b><span style='text-decoration:underline'>Update</span></b></html>"
                         }
                     }
 
                     override fun mouseExited(e: MouseEvent?) {
-                        if (updateLink.text != "Updated!") {
-                            updateLink.text = "Update"
+                        if (!updateLink.text.contains("Updated")) {
+                            updateLink.text =
+                                "<html><b><span style='text-decoration:none'>Update</span></b></html>"
                         }
                     }
                 },
@@ -661,14 +802,6 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         rightPanel.layout = BoxLayout(rightPanel, BoxLayout.Y_AXIS)
         rightPanel.isOpaque = false
 
-        val versionColor =
-            when (result.status) {
-                DependencyStatus.OUTDATED -> accentOrange
-                DependencyStatus.UP_TO_DATE -> accentGreen
-                DependencyStatus.ERROR, DependencyStatus.NOT_FOUND -> accentRed
-                DependencyStatus.UNRESOLVED -> subtleText
-            }
-
         when (result.status) {
             DependencyStatus.OUTDATED -> {
                 val currentLabel = JBLabel(dep.version)
@@ -679,7 +812,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
                 val latestLabel = JBLabel(result.latestVersion?.version ?: "")
                 latestLabel.font = latestLabel.font.deriveFont(Font.BOLD, 12f)
-                latestLabel.foreground = versionColor
+                latestLabel.foreground = statusColor
                 latestLabel.horizontalAlignment = SwingConstants.RIGHT
                 latestLabel.alignmentX = Component.RIGHT_ALIGNMENT
 
@@ -697,7 +830,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                     }
                 val versionLabel = JBLabel(versionText)
                 versionLabel.font = versionLabel.font.deriveFont(Font.BOLD, 11.5f)
-                versionLabel.foreground = versionColor
+                versionLabel.foreground = statusColor
                 versionLabel.horizontalAlignment = SwingConstants.RIGHT
                 versionLabel.alignmentX = Component.RIGHT_ALIGNMENT
                 rightPanel.add(versionLabel)

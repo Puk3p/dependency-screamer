@@ -26,6 +26,14 @@ class NexusGuardSettingsPanel {
         }
     private val ignoreSnapshotsCheckbox = JBCheckBox("Ignore SNAPSHOT versions")
     private val timeoutSpinner = JSpinner(SpinnerNumberModel(10, 1, 120, 1))
+    private val autoScanOnOpenCheckbox = JBCheckBox("Auto-scan dependencies on project open")
+    private val backgroundScanCheckbox = JBCheckBox("Enable background periodic scan")
+    private val backgroundScanIntervalSpinner = JSpinner(SpinnerNumberModel(30, 5, 360, 5))
+    private val changelogUrlPatternField =
+        JBTextField().apply {
+            emptyText.text = "e.g. https://raw.githubusercontent.com/myorg/{artifactId}/main/CHANGELOG.md"
+        }
+    private val changelogTokenField = JBPasswordField()
 
     val rootPanel: JPanel =
         FormBuilder.createFormBuilder()
@@ -38,6 +46,13 @@ class NexusGuardSettingsPanel {
             .addLabeledComponent(JBLabel("Group filter (only check matching):"), groupFilterField)
             .addComponent(ignoreSnapshotsCheckbox)
             .addLabeledComponent(JBLabel("Timeout (seconds):"), timeoutSpinner)
+            .addSeparator()
+            .addComponent(autoScanOnOpenCheckbox)
+            .addComponent(backgroundScanCheckbox)
+            .addLabeledComponent(JBLabel("Scan interval (minutes):"), backgroundScanIntervalSpinner)
+            .addSeparator()
+            .addLabeledComponent(JBLabel("Changelog URL pattern:"), changelogUrlPatternField)
+            .addLabeledComponent(JBLabel("GitHub/GitLab token (PAT):"), changelogTokenField)
             .addComponentFillVertically(JPanel(), 0)
             .panel
 
@@ -81,5 +96,35 @@ class NexusGuardSettingsPanel {
         get() = groupFilterField.text
         set(value) {
             groupFilterField.text = value
+        }
+
+    var autoScanOnOpen: Boolean
+        get() = autoScanOnOpenCheckbox.isSelected
+        set(value) {
+            autoScanOnOpenCheckbox.isSelected = value
+        }
+
+    var backgroundScanEnabled: Boolean
+        get() = backgroundScanCheckbox.isSelected
+        set(value) {
+            backgroundScanCheckbox.isSelected = value
+        }
+
+    var backgroundScanIntervalMinutes: Int
+        get() = backgroundScanIntervalSpinner.value as Int
+        set(value) {
+            backgroundScanIntervalSpinner.value = value
+        }
+
+    var changelogUrlPattern: String
+        get() = changelogUrlPatternField.text
+        set(value) {
+            changelogUrlPatternField.text = value
+        }
+
+    var changelogAuthToken: String
+        get() = String(changelogTokenField.password)
+        set(value) {
+            changelogTokenField.text = value
         }
 }

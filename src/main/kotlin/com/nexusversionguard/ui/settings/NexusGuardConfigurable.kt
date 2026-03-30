@@ -7,12 +7,15 @@ import javax.swing.JComponent
 
 class NexusGuardConfigurable : Configurable {
     private var settingsPanel: NexusGuardSettingsPanel? = null
+    private var cachedPassword: String = ""
+    private var cachedChangelogToken: String = ""
 
     override fun getDisplayName(): String = "Dependency Screamer"
 
     override fun createComponent(): JComponent {
         val panel = NexusGuardSettingsPanel()
         settingsPanel = panel
+        reset()
         return panel.rootPanel
     }
 
@@ -23,10 +26,15 @@ class NexusGuardConfigurable : Configurable {
         return panel.baseUrl != settings.baseUrl ||
             panel.repositories != settings.repositories ||
             panel.username != settings.username ||
-            panel.password != settings.password ||
+            panel.password != cachedPassword ||
             panel.ignoreSnapshots != settings.ignoreSnapshots ||
             panel.timeoutSeconds != settings.timeoutSeconds ||
-            panel.groupFilter != settings.groupFilter
+            panel.groupFilter != settings.groupFilter ||
+            panel.autoScanOnOpen != settings.autoScanOnOpen ||
+            panel.backgroundScanEnabled != settings.backgroundScanEnabled ||
+            panel.backgroundScanIntervalMinutes != settings.backgroundScanIntervalMinutes ||
+            panel.changelogUrlPattern != settings.changelogUrlPattern ||
+            panel.changelogAuthToken != cachedChangelogToken
     }
 
     override fun apply() {
@@ -37,9 +45,16 @@ class NexusGuardConfigurable : Configurable {
         settings.repositories = panel.repositories
         settings.username = panel.username
         settings.password = panel.password
+        cachedPassword = panel.password
         settings.ignoreSnapshots = panel.ignoreSnapshots
         settings.timeoutSeconds = panel.timeoutSeconds
         settings.groupFilter = panel.groupFilter
+        settings.autoScanOnOpen = panel.autoScanOnOpen
+        settings.backgroundScanEnabled = panel.backgroundScanEnabled
+        settings.backgroundScanIntervalMinutes = panel.backgroundScanIntervalMinutes
+        settings.changelogUrlPattern = panel.changelogUrlPattern
+        settings.changelogAuthToken = panel.changelogAuthToken
+        cachedChangelogToken = panel.changelogAuthToken
 
         DependencyAnalysisServiceProvider.getInstance().invalidate()
     }
@@ -51,10 +66,17 @@ class NexusGuardConfigurable : Configurable {
         panel.baseUrl = settings.baseUrl
         panel.repositories = settings.repositories
         panel.username = settings.username
-        panel.password = settings.password
+        cachedPassword = settings.getPasswordValue()
+        panel.password = cachedPassword
         panel.ignoreSnapshots = settings.ignoreSnapshots
         panel.timeoutSeconds = settings.timeoutSeconds
         panel.groupFilter = settings.groupFilter
+        panel.autoScanOnOpen = settings.autoScanOnOpen
+        panel.backgroundScanEnabled = settings.backgroundScanEnabled
+        panel.backgroundScanIntervalMinutes = settings.backgroundScanIntervalMinutes
+        panel.changelogUrlPattern = settings.changelogUrlPattern
+        cachedChangelogToken = settings.getChangelogTokenValue()
+        panel.changelogAuthToken = cachedChangelogToken
     }
 
     override fun disposeUIResources() {

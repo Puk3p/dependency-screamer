@@ -26,6 +26,10 @@ class NexusGuardSettings :
     var ignoreSnapshots: Boolean = true
     var timeoutSeconds: Int = 10
     var groupFilter: String = ""
+    var autoScanOnOpen: Boolean = true
+    var backgroundScanEnabled: Boolean = false
+    var backgroundScanIntervalMinutes: Int = 30
+    var changelogUrlPattern: String = ""
 
     @get:Transient
     var password: String
@@ -38,8 +42,23 @@ class NexusGuardSettings :
             PasswordSafe.instance.set(attributes, Credentials(username, value))
         }
 
+    @get:Transient
+    var changelogAuthToken: String
+        get() {
+            val attributes = changelogTokenAttributes()
+            return PasswordSafe.instance.getPassword(attributes).orEmpty()
+        }
+        set(value) {
+            val attributes = changelogTokenAttributes()
+            PasswordSafe.instance.set(attributes, Credentials("changelog-token", value))
+        }
+
     private fun credentialAttributes(): CredentialAttributes {
         return CredentialAttributes(generateServiceName("DependencyScreamer", "NexusCredentials"))
+    }
+
+    private fun changelogTokenAttributes(): CredentialAttributes {
+        return CredentialAttributes(generateServiceName("DependencyScreamer", "ChangelogToken"))
     }
 
     override fun getState(): NexusGuardSettings = this
@@ -66,6 +85,14 @@ class NexusGuardSettings :
 
     fun getPasswordValue(): String {
         return password
+    }
+
+    fun getChangelogTokenValue(): String {
+        return changelogAuthToken
+    }
+
+    fun setChangelogTokenValue(value: String) {
+        changelogAuthToken = value
     }
 
     override fun isConfigured(): Boolean = baseUrl.isNotBlank() && repositories.isNotBlank()

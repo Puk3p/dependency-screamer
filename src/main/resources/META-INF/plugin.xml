@@ -54,6 +54,12 @@
         <applicationService
                 serviceImplementation="com.nexusversionguard.application.service.DependencyAnalysisServiceProvider"/>
 
+        <projectService
+                serviceImplementation="com.nexusversionguard.application.service.BackgroundScanService"/>
+
+        <projectService
+                serviceImplementation="com.nexusversionguard.infrastructure.settings.DismissedDependenciesState"/>
+
         <applicationConfigurable
                 parentId="tools"
                 instance="com.nexusversionguard.ui.settings.NexusGuardConfigurable"
@@ -87,4 +93,10 @@
         <postStartupActivity
                 implementation="com.nexusversionguard.ui.startup.NexusGuardStartupActivity"/>
     </extensions>
+
+    <applicationListeners>
+        <listener
+                class="com.nexusversionguard.ui.listener.PomFileChangeListener"
+                topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </applicationListeners>
 </idea-plugin>

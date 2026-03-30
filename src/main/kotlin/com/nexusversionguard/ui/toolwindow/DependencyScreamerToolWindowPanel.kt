@@ -14,10 +14,15 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
+import com.nexusversionguard.application.service.BackgroundScanService
 import com.nexusversionguard.application.service.DependencyAnalysisServiceProvider
 import com.nexusversionguard.domain.model.DependencyAnalysisResult
 import com.nexusversionguard.domain.model.DependencyStatus
+import com.nexusversionguard.infrastructure.changelog.ChangelogFetcher
+import com.nexusversionguard.infrastructure.changelog.ChangelogParser
+import com.nexusversionguard.infrastructure.settings.DismissedDependenciesState
 import com.nexusversionguard.infrastructure.settings.NexusGuardSettings
+import com.nexusversionguard.ui.changelog.ChangelogDialog
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -259,6 +264,8 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
                 val content = String(pomFile.contentsToByteArray())
                 val service = DependencyAnalysisServiceProvider.getInstance().getService()
                 val results = service.analyzeDependencies(content).join()
+                val outdatedCount = results.count { it.status == DependencyStatus.OUTDATED }
+                BackgroundScanService.getInstance(project).updateBadge(outdatedCount)
 
                 SwingUtilities.invokeLater {
                     stopSpinner()
@@ -292,7 +299,16 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
             return
         }
 
-        val outdated = results.filter { it.status == DependencyStatus.OUTDATED }
+        val dismissedState = DismissedDependenciesState.getInstance(project)
+        val allOutdated = results.filter { it.status == DependencyStatus.OUTDATED }
+        val outdated = allOutdated.filter { r ->
+            val latest = r.latestVersion?.version ?: ""
+            !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+        }
+        val dismissed = allOutdated.filter { r ->
+            val latest = r.latestVersion?.version ?: ""
+            dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+        }
         val upToDate = results.filter { it.status == DependencyStatus.UP_TO_DATE }
         val errors =
             results.filter {
@@ -302,6 +318,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
         addSummaryBadge("${outdated.size} outdated", accentOrange, outdated.isNotEmpty())
         addSummaryBadge("${upToDate.size} ok", accentGreen, upToDate.isNotEmpty())
+        if (dismissed.isNotEmpty()) addSummaryBadge("${dismissed.size} dismissed", subtleText, true)
         if (errors.isNotEmpty()) addSummaryBadge("${errors.size} errors", accentRed, true)
         summaryPanel.revalidate()
 
@@ -316,6 +333,9 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         }
         if (upToDate.isNotEmpty()) {
             addSection("Up to date", accentGreen, upToDate)
+        }
+        if (dismissed.isNotEmpty()) {
+            addSection("Dismissed", subtleText, dismissed)
         }
 
         resultsPanel.add(Box.createVerticalGlue())
@@ -337,7 +357,16 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
             return
         }
 
-        val outdated = results.filter { it.status == DependencyStatus.OUTDATED }
+        val dismissedState = DismissedDependenciesState.getInstance(project)
+        val allOutdated = results.filter { it.status == DependencyStatus.OUTDATED }
+        val outdated = allOutdated.filter { r ->
+            val latest = r.latestVersion?.version ?: ""
+            !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+        }
+        val dismissed = allOutdated.filter { r ->
+            val latest = r.latestVersion?.version ?: ""
+            dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+        }
         val upToDate = results.filter { it.status == DependencyStatus.UP_TO_DATE }
         val errors =
             results.filter {
@@ -347,6 +376,7 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
         addSummaryBadge("${outdated.size} outdated", accentOrange, outdated.isNotEmpty())
         addSummaryBadge("${upToDate.size} ok", accentGreen, upToDate.isNotEmpty())
+        if (dismissed.isNotEmpty()) addSummaryBadge("${dismissed.size} dismissed", subtleText, true)
         if (errors.isNotEmpty()) addSummaryBadge("${errors.size} errors", accentRed, true)
         summaryPanel.revalidate()
 
@@ -363,6 +393,9 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
         }
         if (upToDate.isNotEmpty()) {
             allComponents.addAll(buildSection("Up to date", accentGreen, upToDate))
+        }
+        if (dismissed.isNotEmpty()) {
+            allComponents.addAll(buildSection("Dismissed", subtleText, dismissed))
         }
 
         allComponents.forEach { it.isVisible = false }
@@ -798,6 +831,116 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
             )
             linksRow.add(updateLink)
 
+            val changelogSettings = NexusGuardSettings.getInstance()
+            if (changelogSettings.changelogUrlPattern.isNotBlank()) {
+                val changeSep = JBLabel("  ·  ")
+                changeSep.foreground = subtleText
+                changeSep.font = changeSep.font.deriveFont(10.5f)
+                linksRow.add(changeSep)
+
+                val changelogLink =
+                    JBLabel("<html><span style='text-decoration:none'>What changed?</span></html>")
+                changelogLink.font = changelogLink.font.deriveFont(10.5f)
+                changelogLink.foreground = linkColor
+                changelogLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                changelogLink.addMouseListener(
+                    object : MouseAdapter() {
+                        override fun mouseClicked(e: MouseEvent?) {
+                            val latestVersion = result.latestVersion?.version ?: return
+                            changelogLink.text =
+                                "<html><span style='text-decoration:none'>Loading...</span></html>"
+                            changelogLink.foreground = subtleText
+                            changelogLink.cursor = Cursor.getDefaultCursor()
+
+                            ApplicationManager.getApplication().executeOnPooledThread {
+                                val fetcher = ChangelogFetcher()
+                                val rawChangelog = fetcher.fetch(dep.groupId, dep.artifactId)
+
+                                SwingUtilities.invokeLater {
+                                    changelogLink.text =
+                                        "<html><span style='text-decoration:none'>What changed?</span></html>"
+                                    changelogLink.foreground = linkColor
+                                    changelogLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+
+                                    if (rawChangelog != null) {
+                                        val parser = ChangelogParser()
+                                        val allEntries = parser.parse(rawChangelog)
+                                        val filtered = parser.entriesBetween(allEntries, dep.version, latestVersion)
+                                        ChangelogDialog(project, dep.artifactId, dep.version, latestVersion, filtered)
+                                            .show()
+                                    } else {
+                                        ChangelogDialog(project, dep.artifactId, dep.version, latestVersion, emptyList())
+                                            .show()
+                                    }
+                                }
+                            }
+                        }
+
+                        override fun mouseEntered(e: MouseEvent?) {
+                            if (!changelogLink.text.contains("Loading")) {
+                                changelogLink.text =
+                                    "<html><span style='text-decoration:underline'>What changed?</span></html>"
+                            }
+                        }
+
+                        override fun mouseExited(e: MouseEvent?) {
+                            if (!changelogLink.text.contains("Loading")) {
+                                changelogLink.text =
+                                    "<html><span style='text-decoration:none'>What changed?</span></html>"
+                            }
+                        }
+                    },
+                )
+                linksRow.add(changelogLink)
+            }
+
+            val dismissSep = JBLabel("  ·  ")
+            dismissSep.foreground = subtleText
+            dismissSep.font = dismissSep.font.deriveFont(10.5f)
+            linksRow.add(dismissSep)
+
+            val dismissedState = DismissedDependenciesState.getInstance(project)
+            val latestVer = result.latestVersion?.version ?: ""
+            val isDismissed = dismissedState.isDismissed(dep.groupId, dep.artifactId, latestVer)
+
+            val dismissLabel = if (isDismissed) "Restore" else "Dismiss"
+            val dismissLink =
+                JBLabel("<html><span style='text-decoration:none'>$dismissLabel</span></html>")
+            dismissLink.font = dismissLink.font.deriveFont(10.5f)
+            dismissLink.foreground = subtleText
+            dismissLink.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            dismissLink.addMouseListener(
+                object : MouseAdapter() {
+                    override fun mouseClicked(e: MouseEvent?) {
+                        val latest = result.latestVersion?.version ?: return
+                        val state = DismissedDependenciesState.getInstance(project)
+                        if (state.isDismissed(dep.groupId, dep.artifactId, latest)) {
+                            state.restore(dep.groupId, dep.artifactId)
+                        } else {
+                            state.dismiss(dep.groupId, dep.artifactId, latest)
+                        }
+                        dismissLink.text =
+                            "<html><span style='text-decoration:none'>Done! Re-scan to refresh.</span></html>"
+                        dismissLink.cursor = Cursor.getDefaultCursor()
+                    }
+
+                    override fun mouseEntered(e: MouseEvent?) {
+                        if (!dismissLink.text.contains("Done")) {
+                            dismissLink.text =
+                                "<html><span style='text-decoration:underline'>$dismissLabel</span></html>"
+                        }
+                    }
+
+                    override fun mouseExited(e: MouseEvent?) {
+                        if (!dismissLink.text.contains("Done")) {
+                            dismissLink.text =
+                                "<html><span style='text-decoration:none'>$dismissLabel</span></html>"
+                        }
+                    }
+                },
+            )
+            linksRow.add(dismissLink)
+
             leftPanel.add(linksRow)
         }
 
@@ -855,10 +998,10 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
     ): Boolean {
         val basePath = project.basePath ?: return false
         val pomVirtualFile = LocalFileSystem.getInstance().findFileByPath("$basePath/pom.xml") ?: return false
-        val psiFile = PsiManager.getInstance(project).findFile(pomVirtualFile) as? XmlFile ?: return false
 
         return try {
             WriteCommandAction.runWriteCommandAction(project) {
+                val psiFile = PsiManager.getInstance(project).findFile(pomVirtualFile) as? XmlFile ?: return@runWriteCommandAction
                 val rootTag = psiFile.rootTag ?: return@runWriteCommandAction
                 val isPropertyBased = rawVersion.startsWith("\${")
 

@@ -301,14 +301,16 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
         val dismissedState = DismissedDependenciesState.getInstance(project)
         val allOutdated = results.filter { it.status == DependencyStatus.OUTDATED }
-        val outdated = allOutdated.filter { r ->
-            val latest = r.latestVersion?.version ?: ""
-            !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
-        }
-        val dismissed = allOutdated.filter { r ->
-            val latest = r.latestVersion?.version ?: ""
-            dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
-        }
+        val outdated =
+            allOutdated.filter { r ->
+                val latest = r.latestVersion?.version ?: ""
+                !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+            }
+        val dismissed =
+            allOutdated.filter { r ->
+                val latest = r.latestVersion?.version ?: ""
+                dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+            }
         val upToDate = results.filter { it.status == DependencyStatus.UP_TO_DATE }
         val errors =
             results.filter {
@@ -359,14 +361,16 @@ class DependencyScreamerToolWindowPanel(private val project: Project) {
 
         val dismissedState = DismissedDependenciesState.getInstance(project)
         val allOutdated = results.filter { it.status == DependencyStatus.OUTDATED }
-        val outdated = allOutdated.filter { r ->
-            val latest = r.latestVersion?.version ?: ""
-            !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
-        }
-        val dismissed = allOutdated.filter { r ->
-            val latest = r.latestVersion?.version ?: ""
-            dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
-        }
+        val outdated =
+            allOutdated.filter { r ->
+                val latest = r.latestVersion?.version ?: ""
+                !dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+            }
+        val dismissed =
+            allOutdated.filter { r ->
+                val latest = r.latestVersion?.version ?: ""
+                dismissedState.isDismissed(r.dependency.groupId, r.dependency.artifactId, latest)
+            }
         val upToDate = results.filter { it.status == DependencyStatus.UP_TO_DATE }
         val errors =
             results.filter {

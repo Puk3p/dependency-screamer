@@ -51,14 +51,15 @@ class ChangelogDialog(
                 entryPane.isOpaque = false
 
                 val dateStr = if (entry.date != null) " — ${entry.date}" else ""
-                val html = buildString {
-                    append("<html><body style='font-family:sans-serif;font-size:11px;'>")
-                    append("<h3 style='margin:4px 0;'>v${entry.version}$dateStr</h3>")
-                    append("<div style='margin-left:8px;white-space:pre-wrap;'>")
-                    append(markdownToSimpleHtml(entry.content))
-                    append("</div>")
-                    append("</body></html>")
-                }
+                val html =
+                    buildString {
+                        append("<html><body style='font-family:sans-serif;font-size:11px;'>")
+                        append("<h3 style='margin:4px 0;'>v${entry.version}$dateStr</h3>")
+                        append("<div style='margin-left:8px;white-space:pre-wrap;'>")
+                        append(markdownToSimpleHtml(entry.content))
+                        append("</div>")
+                        append("</body></html>")
+                    }
                 entryPane.text = html
                 entryPane.border = JBUI.Borders.empty(4, 0, 8, 0)
                 contentPanel.add(entryPane)

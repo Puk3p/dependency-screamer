@@ -1,7 +1,6 @@
 package com.nexusversionguard.ui.listener
 
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
@@ -17,10 +16,11 @@ class PomFileChangeListener : BulkFileListener {
     private var debounceTimer: Timer? = null
 
     override fun after(events: List<VFileEvent>) {
-        val pomChanged = events.any { event ->
-            val path = event.path
-            path.endsWith("/pom.xml") || path.endsWith("\\pom.xml")
-        }
+        val pomChanged =
+            events.any { event ->
+                val path = event.path
+                path.endsWith("/pom.xml") || path.endsWith("\\pom.xml")
+            }
 
         if (!pomChanged) return
 
@@ -36,9 +36,10 @@ class PomFileChangeListener : BulkFileListener {
                         if (project.isDisposed) continue
                         val basePath = project.basePath ?: continue
 
-                        val projectPomChanged = events.any { event ->
-                            event.path.replace("\\", "/").startsWith(basePath.replace("\\", "/"))
-                        }
+                        val projectPomChanged =
+                            events.any { event ->
+                                event.path.replace("\\", "/").startsWith(basePath.replace("\\", "/"))
+                            }
 
                         if (projectPomChanged) {
                             logger.info("Dependency Screamer: pom.xml changed, triggering rescan for ${project.name}")
